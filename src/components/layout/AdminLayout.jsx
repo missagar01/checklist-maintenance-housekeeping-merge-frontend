@@ -21,7 +21,7 @@ import {
   X,
 } from "lucide-react";
 
-export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
+export default function AdminLayout({ children, darkMode, toggleDarkMode, onScroll }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -65,6 +65,8 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   // Filter dataCategories based on user role
   const dataCategories = [
     { id: "sales", name: "Checklist", link: "/dashboard/data/sales" },
+    { id: "maintenance-task", name: "Maintenance_Task", link: "/dashboard/data/maintenance-task" },
+    { id: "housekeeping-task", name: "Housekeeping_Task", link: "/dashboard/data/housekepping-task" },
   ];
 
   // Update the routes array based on user role and super admin status
@@ -84,6 +86,14 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
       // Only show for super admin (username = 'admin')
       showFor: isSuperAdmin ? ["admin"] : [],
     },
+    {
+  href: "/dashboard/machines",
+  label: "Machine",
+  icon: Settings,   // You can replace with any icon
+  active: location.pathname === "/dashboard/machines",
+  showFor: ["admin"],    // Only admin can see it
+},
+
     {
       href: "/dashboard/assign-task",
       label: "Assign Task",
@@ -132,10 +142,116 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   };
 
   // Filter routes based on user role and super admin status
-  const getAccessibleRoutes = () => {
-    const userRole = localStorage.getItem("role") || "user";
-    return routes.filter((route) => route.showFor.includes(userRole));
-  };
+// Update the getAccessibleRoutes function in AdminLayout.jsx
+// Replace the entire getAccessibleRoutes function with this:
+// Remove the old getAccessibleRoutes function and replace it with this:
+// Update the getAccessibleRoutes function to remove quotes
+const getAccessibleRoutes = () => {
+  const userRole = localStorage.getItem("role") || "user";
+  const pageAccess = localStorage.getItem("page_access") || "";
+  
+  // Remove any quotes from the string before splitting
+  const cleanPageAccess = pageAccess.replace(/"/g, '');
+  const accessiblePages = cleanPageAccess.split(',').map(page => page.trim());
+  
+  console.log("DEBUG - User Role:", userRole);
+  console.log("DEBUG - Page Access from localStorage:", pageAccess);
+  console.log("DEBUG - Clean Page Access:", cleanPageAccess);
+  console.log("DEBUG - Accessible Pages Array:", accessiblePages);
+  console.log("DEBUG - Is Super Admin:", isSuperAdmin);
+  
+  // Define routes with pageKey properties
+  const allRoutes = [
+    {
+      href: "/dashboard/admin",
+      label: "Dashboard",
+      icon: Database,
+      active: location.pathname === "/dashboard/admin",
+      pageKey: "dashboard",
+      showFor: ["admin", "user"],
+    },
+    {
+      href: "/dashboard/quick-task",
+      label: "Quick Task",
+      icon: Zap,
+      active: location.pathname === "/dashboard/quick-task",
+      pageKey: "quick-task",
+      showFor: ["admin"],
+    },
+    {
+      href: "/dashboard/machines",
+      label: "Machine",
+      icon: Settings,
+      active: location.pathname === "/dashboard/machines",
+      pageKey: "machines",
+      showFor: ["admin"],
+    },
+    {
+      href: "/dashboard/assign-task",
+      label: "Assign Task",
+      icon: CheckSquare,
+      active: location.pathname === "/dashboard/assign-task",
+      pageKey: "assign-task",
+      showFor: ["admin", "user"],
+    },
+    {
+      href: "/dashboard/delegation",
+      label: "Delegation",
+      icon: ClipboardList,
+      active: location.pathname === "/dashboard/delegation",
+      pageKey: "delegation",
+      showFor: ["admin", "user"],
+    },
+    {
+      href: "#",
+      label: "Data",
+      icon: Database,
+      active: location.pathname.includes("/dashboard/data"),
+      submenu: true,
+      pageKey: "data",
+      showFor: ["admin", "user"],
+    },
+    {
+      href: "/dashboard/mis-report",
+      label: "MIS Report",
+      icon: CheckSquare,
+      active: location.pathname.includes("/dashboard/mis-report"),
+      pageKey: "mis-report",
+      showFor: ["admin"],
+    },
+    {
+      href: "/dashboard/setting",
+      label: "Settings",
+      icon: Settings,
+      active: location.pathname.includes("/dashboard/setting"),
+      pageKey: "setting",
+      showFor: ["admin"],
+    },
+  ];
+
+  // Filter routes based on user role and page_access
+  const filteredRoutes = allRoutes.filter((route) => {
+    // Check if user has role permission
+    const hasRolePermission = route.showFor.includes(userRole);
+    
+    // Check page access
+    let hasPageAccess = true;
+    if (accessiblePages.length > 0 && accessiblePages[0] !== "") {
+      // If page_access is specified, check if route is included
+      hasPageAccess = accessiblePages.includes(route.pageKey);
+      console.log(`Checking ${route.label} (${route.pageKey}): ${hasPageAccess ? 'YES' : 'NO'}`);
+    }
+    
+    const shouldShow = hasRolePermission && hasPageAccess;
+    console.log(`Route: ${route.label} - Role: ${hasRolePermission}, Page: ${hasPageAccess}, Show: ${shouldShow}`);
+    
+    return shouldShow;
+  });
+
+  console.log("DEBUG - Final filtered routes:", filteredRoutes.map(r => r.label));
+  return filteredRoutes;
+};
+
 
   // Check if the current path is a data category page
   const isDataPage = location.pathname.includes("/dashboard/data/");
@@ -513,7 +629,11 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
             />
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gradient-to-br from-blue-50 to-purple-50">
+        <main
+  className="flex-1 overflow-y-auto p-4 md:p-6 bg-gradient-to-br from-blue-50 to-purple-50"
+  onScroll={onScroll}
+>
+
           {children}
 
           <div className="fixed md:left-64 left-0 right-0 bottom-0 py-1 px-4 gradient-bg text-white text-center text-sm shadow-lg z-10 backdrop-blur-sm">

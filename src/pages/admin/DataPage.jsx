@@ -5,13 +5,14 @@ import AdminLayout from "../../components/layout/AdminLayout.jsx"
 import SalesDataPage from "./SalesDataPage.jsx"
 import ServiceDataPage from "./service-data-page.jsx"
 import JockeyDataPage from "./jockey-data-page.jsx"
-import AccountDataPage from "./account-data-page.jsx"
+import MaintenanceDataPage from "./maintenance-data-page.jsx"
 import WarehouseDataPage from "./ware-house-data.jsx"
 import PurchaseDataPage from "./purchase-data-page.jsx"
 import DirectorDataPage from "./director-data-page.jsx"
 import ManagingDirector from "./managingDirector-data-page.jsx"
 import AdminDataPage from "./admin-data-page.jsx"
 import Coo from "./coo-data-page.jsx"
+import HousekeepingDataPage from "./housekeepingTask.jsx"
 
 export default function DataPage() {
   const { category } = useParams()
@@ -35,10 +36,10 @@ export default function DataPage() {
     //   return <ServiceDataPage />
     // case "jockey":
     //   return <JockeyDataPage />
-    case "account":
-      return <AccountDataPage />
-    case "warehouse":
-      return <WarehouseDataPage />
+    case "maintenance-task":
+      return <MaintenanceDataPage />
+    case "housekepping-task":
+      return <HousekeepingDataPage />
       case "purchase":
         return <PurchaseDataPage/>
         case "director":

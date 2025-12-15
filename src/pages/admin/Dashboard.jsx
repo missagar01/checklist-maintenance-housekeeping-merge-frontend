@@ -10,6 +10,11 @@ import CompletionRateCard from "./dashboard/CompletionRateCard.jsx"
 import TasksOverviewChart from "./dashboard/Chart/TaskOverviewChart.jsx"
 import TasksCompletionChart from "./dashboard/Chart/TaskCompletionChart.jsx"
 import StaffTasksTable from "./dashboard/StaffTaskTable.jsx"
+// Add these imports at the top with other imports
+import MaintenanceDashboard from "./maintenanceDashboard.jsx"
+import HousekeepingDashboard from "./housekeppingDashboard.jsx"
+
+// Add this state variable with other state declarations
 import {
   completeTaskInTable,
   overdueTaskInTable,
@@ -36,6 +41,8 @@ export default function AdminDashboard() {
   const [availableStaff, setAvailableStaff] = useState([])
   const userRole = localStorage.getItem("role")
   const username = localStorage.getItem("user-name")
+const [dashboardView, setDashboardView] = useState("checklist") // New state for dashboard 
+
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -988,68 +995,112 @@ useEffect(() => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <DashboardHeader
-          dashboardType={dashboardType}
-          setDashboardType={setDashboardType}
-          dashboardStaffFilter={dashboardStaffFilter}
-          setDashboardStaffFilter={setDashboardStaffFilter}
-          availableStaff={availableStaff}
-          userRole={userRole}
-          username={username}
-          departmentFilter={departmentFilter}
-          setDepartmentFilter={setDepartmentFilter}
-          availableDepartments={availableDepartments}
-          isLoadingMore={isLoadingMore}
-          onDateRangeChange={handleDateRangeChange} // Add this prop
-        />
+    <div className="space-y-6">
+      {/* Navigation Buttons for Checklist, Housekeeping, Maintenance */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setDashboardView("checklist")}
+            className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+              dashboardView === "checklist"
+                ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
+                : "bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Checklist
+          </button>
+          <button
+            onClick={() => setDashboardView("maintenance")}
+            className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+              dashboardView === "maintenance"
+                ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
+                : "bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Maintenance
+          </button>
+          <button
+            onClick={() => setDashboardView("housekeeping")}
+            className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+              dashboardView === "housekeeping"
+                ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
+                : "bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Housekeeping
+          </button>
+        </div>
+      </div>
 
-        <StatisticsCards
-          totalTask={displayStats.totalTasks}
-          completeTask={displayStats.completedTasks}
-          pendingTask={displayStats.pendingTasks}
-          overdueTask={displayStats.overdueTasks}
-          notDoneTask={notDoneTask}
-          dashboardType={dashboardType}
-          dateRange={dateRange.filtered ? dateRange : null}
-        />
+      {/* Render the selected dashboard view */}
+      {dashboardView === "checklist" && (
+        <>
+          <DashboardHeader
+            dashboardType={dashboardType}
+            setDashboardType={setDashboardType}
+            dashboardStaffFilter={dashboardStaffFilter}
+            setDashboardStaffFilter={setDashboardStaffFilter}
+            availableStaff={availableStaff}
+            userRole={userRole}
+            username={username}
+            departmentFilter={departmentFilter}
+            setDepartmentFilter={setDepartmentFilter}
+            availableDepartments={availableDepartments}
+            isLoadingMore={isLoadingMore}
+            onDateRangeChange={handleDateRangeChange}
+          />
 
-        <TaskNavigationTabs
-          taskView={taskView}
-          setTaskView={setTaskView}
-          dashboardType={dashboardType}
-          dashboardStaffFilter={dashboardStaffFilter}
-          departmentFilter={departmentFilter}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          filterStaff={filterStaff}
-          setFilterStaff={setFilterStaff}
-          departmentData={departmentData}
-          getTasksByView={getTasksByView}
-          getFrequencyColor={getFrequencyColor}
-          isLoadingMore={isLoadingMore}
-          hasMoreData={hasMoreData}
-        />
+          <StatisticsCards
+            totalTask={displayStats.totalTasks}
+            completeTask={displayStats.completedTasks}
+            pendingTask={displayStats.pendingTasks}
+            overdueTask={displayStats.overdueTasks}
+            notDoneTask={notDoneTask}
+            dashboardType={dashboardType}
+            dateRange={dateRange.filtered ? dateRange : null}
+          />
 
-        {activeTab === "overview" && (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-purple-200 shadow-md bg-white">
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
-                <h3 className="text-purple-700 font-medium">Staff Task Summary</h3>
-                <p className="text-purple-600 text-sm">Overview of tasks assigned to each staff member</p>
-              </div>
-              <div className="p-4">
-                <StaffTasksTable
-                  dashboardType={dashboardType}
-                  dashboardStaffFilter={dashboardStaffFilter}
-                  departmentFilter={departmentFilter}
-                  parseTaskStartDate={parseTaskStartDate}
-                />
+          <TaskNavigationTabs
+            taskView={taskView}
+            setTaskView={setTaskView}
+            dashboardType={dashboardType}
+            dashboardStaffFilter={dashboardStaffFilter}
+            departmentFilter={departmentFilter}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            filterStaff={filterStaff}
+            setFilterStaff={setFilterStaff}
+            departmentData={departmentData}
+            getTasksByView={getTasksByView}
+            getFrequencyColor={getFrequencyColor}
+            isLoadingMore={isLoadingMore}
+            hasMoreData={hasMoreData}
+          />
+
+          {activeTab === "overview" && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-purple-200 shadow-md bg-white">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
+                  <h3 className="text-purple-700 font-medium">Staff Task Summary</h3>
+                  <p className="text-purple-600 text-sm">Overview of tasks assigned to each staff member</p>
+                </div>
+                <div className="p-4">
+                  <StaffTasksTable
+                    dashboardType={dashboardType}
+                    dashboardStaffFilter={dashboardStaffFilter}
+                    departmentFilter={departmentFilter}
+                    parseTaskStartDate={parseTaskStartDate}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    </AdminLayout>
+          )}
+        </>
+      )}
+
+      {dashboardView === "maintenance" && <MaintenanceDashboard />}
+      {dashboardView === "housekeeping" && <HousekeepingDashboard />}
+    </div>
+  </AdminLayout>
   )
 }

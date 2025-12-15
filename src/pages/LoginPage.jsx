@@ -30,23 +30,36 @@ const LoginPage = () => {
     dispatch(loginUser(formData));
   };
 
-  useEffect(() => {
-    if (isLoggedIn && userData) {
-      console.log("User Data received:", userData); // Debug log
+// Update the useEffect in LoginPage.jsx
+// Update the useEffect in LoginPage.jsx to add more debugging
+useEffect(() => {
+  if (isLoggedIn && userData) {
+    console.log("User Data received:", userData); // Debug log
 
-      // Store all user data in localStorage
-      localStorage.setItem('user-name', userData.user_name || userData.username || "");
-      localStorage.setItem('role', userData.role || "");
-      localStorage.setItem('email_id', userData.email_id || userData.email || "");
-
-      console.log("Stored email:", userData.email_id || userData.email); // Debug log
-
-      navigate("/dashboard/admin")
-    } else if (error) {
-      showToast(error, "error");
-      setIsLoginLoading(false);
+    // Store all user data in localStorage
+    localStorage.setItem('user-name', userData.user_name || userData.username || "");
+    localStorage.setItem('role', userData.role || "");
+    localStorage.setItem('email_id', userData.email_id || userData.email || "");
+    
+    // Store page_access if available
+    if (userData.page_access) {
+      localStorage.setItem('page_access', userData.page_access);
+      console.log("✅ Stored page_access in localStorage:", userData.page_access);
+    } else {
+      console.log("❌ No page_access in userData");
+      localStorage.removeItem('page_access');
     }
-  }, [isLoggedIn, userData, error, navigate]);
+
+    console.log("✅ Login successful, redirecting to dashboard");
+    console.log("✅ User role:", userData.role);
+    console.log("✅ Page access:", userData.page_access);
+
+    navigate("/dashboard/admin")
+  } else if (error) {
+    showToast(error, "error");
+    setIsLoginLoading(false);
+  }
+}, [isLoggedIn, userData, error, navigate]);
 
   useEffect(() => {
     let subscription;
