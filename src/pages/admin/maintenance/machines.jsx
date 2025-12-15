@@ -12,8 +12,8 @@ import {
   Wrench,
   FileText,
 } from "lucide-react";
-import MachineDetails from "./MachineDetails";
-import NewMachine from "./NewMachine";
+import MachineDetails from "./machineDetails.jsx";
+import NewMachine from "./newMachine.jsx";
 import AssignTask from "../MaintenanceTaskAssign.jsx";
 import AdminLayout from "../../../components/layout/AdminLayout.jsx"
 
