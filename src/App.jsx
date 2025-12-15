@@ -169,7 +169,7 @@ import Demo from "./pages/user/Demo"
 import Setting from "./pages/Setting"
 import MisReport from "./pages/MisReport"
 import Machines from "./pages/admin/maintenance/machines"
-import NewMachine from "./pages/admin/maintenance/NewMachine"
+import NewMachine from "./pages/admin/maintenance/newMachine"
 
 
 // Auth wrapper component to protect routes
