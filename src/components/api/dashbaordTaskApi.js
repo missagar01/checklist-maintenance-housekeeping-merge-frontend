@@ -1,4 +1,4 @@
-import api from "../Api/axios";
+import api from "../api/axios.js";
 
 const todayISO = () => new Date().toISOString().split("T")[0];
 
