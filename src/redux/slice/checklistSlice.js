@@ -1,9 +1,9 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { 
-  fetchChechListDataForHistory, 
-  fetchChechListDataSortByDate, 
-  postChecklistAdminDoneAPI, 
-  updateChecklistData 
+import {
+  fetchChechListDataForHistory,
+  fetchChechListDataSortByDate,
+  postChecklistAdminDoneAPI,
+  updateChecklistData
 } from "../api/checkListApi";
 
 

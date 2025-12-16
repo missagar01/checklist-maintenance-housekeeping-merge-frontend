@@ -13,6 +13,7 @@ import ManagingDirector from "./managingDirector-data-page.jsx"
 import AdminDataPage from "./admin-data-page.jsx"
 import Coo from "./coo-data-page.jsx"
 import HousekeepingDataPage from "./housekeepingTask.jsx"
+import UnifiedTaskPage from "./UnifiedTaskPage.jsx"
 
 export default function DataPage() {
   const { category } = useParams()
@@ -29,7 +30,7 @@ export default function DataPage() {
   // Render the appropriate component based on category
   switch (category) {
     case "main":
-      return <AdminDataPage/>
+      return <UnifiedTaskPage />
     case "sales":
       return <SalesDataPage />
     // case "service":
@@ -40,12 +41,12 @@ export default function DataPage() {
       return <MaintenanceDataPage />
     case "housekepping-task":
       return <HousekeepingDataPage />
-      case "purchase":
-        return <PurchaseDataPage/>
-        case "director":
-        return <DirectorDataPage/>
-        case "managing-director":
-          return <ManagingDirector/>
+    case "purchase":
+      return <PurchaseDataPage />
+    case "director":
+      return <DirectorDataPage />
+    case "managing-director":
+      return <ManagingDirector />
     //       case "coo":
     //       return <Coo/>
     default:

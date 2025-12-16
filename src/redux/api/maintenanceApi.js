@@ -36,9 +36,18 @@ export const getPendingMaintenanceTasksAPI = (page = 1, userId = null) => {
 };
 
 export const getCompletedMaintenanceTasksAPI = (page = 1, filters = {}) => {
-  const params = { page, ...filters };
+  const role = localStorage.getItem("role");
+  const user = localStorage.getItem("user-name");
+
+  const params = {
+    page,
+    ...filters,
+    ...(role === "user" ? { userId: user } : {})   // ✅ ADD THIS
+  };
+
   return maintenanceApi.get("maintenance/tasks/completed", { params });
 };
+
 
 export const updateMaintenanceTaskAPI = (taskId, updateData) => {
   const formData = new FormData();
