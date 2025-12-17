@@ -41,7 +41,7 @@ export default function AdminDashboard() {
   const [availableStaff, setAvailableStaff] = useState([])
   const userRole = localStorage.getItem("role")
   const username = localStorage.getItem("user-name")
-const [dashboardView, setDashboardView] = useState("checklist") // New state for dashboard 
+  const [dashboardView, setDashboardView] = useState("checklist") // New state for dashboard 
 
 
   // Pagination state
@@ -88,16 +88,16 @@ const [dashboardView, setDashboardView] = useState("checklist") // New state for
   const { dashboard, totalTask, completeTask, pendingTask, overdueTask } = useSelector((state) => state.dashBoard)
   const dispatch = useDispatch()
 
-useEffect(() => {
-  const role = localStorage.getItem("role");
-  const username = localStorage.getItem("user-name");
+  useEffect(() => {
+    const role = localStorage.getItem("role");
+    const username = localStorage.getItem("user-name");
 
-  if (role === "user") {
-    setDashboardStaffFilter(username);
-    setFilterStaff(username);
-    setDepartmentFilter("all");        // user cannot filter department
-  }
-}, []);
+    if (role === "user") {
+      setDashboardStaffFilter(username);
+      setFilterStaff(username);
+      setDepartmentFilter("all");        // user cannot filter department
+    }
+  }, []);
 
 
 
@@ -824,12 +824,12 @@ useEffect(() => {
       }),
     )
     dispatch(
-  notDoneTaskInTable({
-    dashboardType,
-    staffFilter: dashboardStaffFilter,
-    departmentFilter,
-  })
-)
+      notDoneTaskInTable({
+        dashboardType,
+        staffFilter: dashboardStaffFilter,
+        departmentFilter,
+      })
+    )
   }, [dashboardType, dashboardStaffFilter, departmentFilter, dispatch])
 
   // Filter tasks based on criteria
@@ -919,7 +919,7 @@ useEffect(() => {
         return "bg-red-500 hover:bg-red-600 text-white"
       default:
         return "bg-gray-500 hover:bg-gray-600 text-white"
-        
+
     }
   }
 
@@ -995,112 +995,109 @@ useEffect(() => {
 
   return (
     <AdminLayout>
-    <div className="space-y-6">
-      {/* Navigation Buttons for Checklist, Housekeeping, Maintenance */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="flex border-b border-gray-200">
-          <button
-            onClick={() => setDashboardView("checklist")}
-            className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
-              dashboardView === "checklist"
-                ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            Checklist
-          </button>
-          <button
-            onClick={() => setDashboardView("maintenance")}
-            className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
-              dashboardView === "maintenance"
-                ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            Maintenance
-          </button>
-          <button
-            onClick={() => setDashboardView("housekeeping")}
-            className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
-              dashboardView === "housekeeping"
-                ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            Housekeeping
-          </button>
+      <div className="space-y-6">
+        {/* Navigation Buttons for Checklist, Housekeeping, Maintenance */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setDashboardView("checklist")}
+              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${dashboardView === "checklist"
+                  ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+            >
+              Checklist
+            </button>
+            <button
+              onClick={() => setDashboardView("maintenance")}
+              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${dashboardView === "maintenance"
+                  ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+            >
+              Maintenance
+            </button>
+            <button
+              onClick={() => setDashboardView("housekeeping")}
+              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${dashboardView === "housekeeping"
+                  ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+            >
+              Housekeeping
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Render the selected dashboard view */}
-      {dashboardView === "checklist" && (
-        <>
-          <DashboardHeader
-            dashboardType={dashboardType}
-            setDashboardType={setDashboardType}
-            dashboardStaffFilter={dashboardStaffFilter}
-            setDashboardStaffFilter={setDashboardStaffFilter}
-            availableStaff={availableStaff}
-            userRole={userRole}
-            username={username}
-            departmentFilter={departmentFilter}
-            setDepartmentFilter={setDepartmentFilter}
-            availableDepartments={availableDepartments}
-            isLoadingMore={isLoadingMore}
-            onDateRangeChange={handleDateRangeChange}
-          />
+        {/* Render the selected dashboard view */}
+        {dashboardView === "checklist" && (
+          <>
+            <DashboardHeader
+              dashboardType={dashboardType}
+              setDashboardType={setDashboardType}
+              dashboardStaffFilter={dashboardStaffFilter}
+              setDashboardStaffFilter={setDashboardStaffFilter}
+              availableStaff={availableStaff}
+              userRole={userRole}
+              username={username}
+              departmentFilter={departmentFilter}
+              setDepartmentFilter={setDepartmentFilter}
+              availableDepartments={availableDepartments}
+              isLoadingMore={isLoadingMore}
+              onDateRangeChange={handleDateRangeChange}
+            />
 
-          <StatisticsCards
-            totalTask={displayStats.totalTasks}
-            completeTask={displayStats.completedTasks}
-            pendingTask={displayStats.pendingTasks}
-            overdueTask={displayStats.overdueTasks}
-            notDoneTask={notDoneTask}
-            dashboardType={dashboardType}
-            dateRange={dateRange.filtered ? dateRange : null}
-          />
+            <StatisticsCards
+              totalTask={displayStats.totalTasks}
+              completeTask={displayStats.completedTasks}
+              pendingTask={displayStats.pendingTasks}
+              overdueTask={displayStats.overdueTasks}
+              notDoneTask={notDoneTask}
+              dashboardType={dashboardType}
+              dateRange={dateRange.filtered ? dateRange : null}
+            />
 
-          <TaskNavigationTabs
-            taskView={taskView}
-            setTaskView={setTaskView}
-            dashboardType={dashboardType}
-            dashboardStaffFilter={dashboardStaffFilter}
-            departmentFilter={departmentFilter}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            filterStaff={filterStaff}
-            setFilterStaff={setFilterStaff}
-            departmentData={departmentData}
-            getTasksByView={getTasksByView}
-            getFrequencyColor={getFrequencyColor}
-            isLoadingMore={isLoadingMore}
-            hasMoreData={hasMoreData}
-          />
+            <TaskNavigationTabs
+              taskView={taskView}
+              setTaskView={setTaskView}
+              dashboardType={dashboardType}
+              dashboardStaffFilter={dashboardStaffFilter}
+              departmentFilter={departmentFilter}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              filterStaff={filterStaff}
+              setFilterStaff={setFilterStaff}
+              departmentData={departmentData}
+              getTasksByView={getTasksByView}
+              getFrequencyColor={getFrequencyColor}
+              isLoadingMore={isLoadingMore}
+              hasMoreData={hasMoreData}
+            />
 
-          {activeTab === "overview" && (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-purple-200 shadow-md bg-white">
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
-                  <h3 className="text-purple-700 font-medium">Staff Task Summary</h3>
-                  <p className="text-purple-600 text-sm">Overview of tasks assigned to each staff member</p>
-                </div>
-                <div className="p-4">
-                  <StaffTasksTable
-                    dashboardType={dashboardType}
-                    dashboardStaffFilter={dashboardStaffFilter}
-                    departmentFilter={departmentFilter}
-                    parseTaskStartDate={parseTaskStartDate}
-                  />
+            {activeTab === "overview" && (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-purple-200 shadow-md bg-white">
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
+                    <h3 className="text-purple-700 font-medium">Staff Task Summary</h3>
+                    <p className="text-purple-600 text-sm">Overview of tasks assigned to each staff member</p>
+                  </div>
+                  <div className="p-4">
+                    <StaffTasksTable
+                      dashboardType={dashboardType}
+                      dashboardStaffFilter={dashboardStaffFilter}
+                      departmentFilter={departmentFilter}
+                      parseTaskStartDate={parseTaskStartDate}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </>
-      )}
+            )}
+          </>
+        )}
 
-      {dashboardView === "maintenance" && <MaintenanceDashboard />}
-      {dashboardView === "housekeeping" && <HousekeepingDashboard />}
-    </div>
-  </AdminLayout>
+        {dashboardView === "maintenance" && <MaintenanceDashboard />}
+        {dashboardView === "housekeeping" && <HousekeepingDashboard />}
+      </div>
+    </AdminLayout>
   )
 }

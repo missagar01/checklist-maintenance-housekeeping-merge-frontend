@@ -110,13 +110,20 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode, onScro
       showFor: ["admin", "user"],
     },
     {
-      href: "#",
-      label: "Data",
-      icon: Database,
-      active: location.pathname.includes("/dashboard/data"),
-      submenu: true,
+      href: "/dashboard/all-task",
+      label: "All Task",
+      icon: ClipboardList,
+      active: location.pathname === "/dashboard/all-task",
       showFor: ["admin", "user"],
     },
+    // {
+    //   href: "#",
+    //   label: "Data",
+    //   icon: Database,
+    //   active: location.pathname.includes("/dashboard/data"),
+    //   submenu: true,
+    //   showFor: ["admin", "user"],
+    // },
     {
       href: "/dashboard/mis-report",
       label: "MIS Report",
@@ -204,14 +211,22 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode, onScro
         showFor: ["admin", "user"],
       },
       {
-        href: "#",
-        label: "Data",
-        icon: Database,
-        active: location.pathname.includes("/dashboard/data"),
-        submenu: true,
-        pageKey: "data",
+        href: "/dashboard/all-task",
+        label: "All Task",
+        icon: ClipboardList,
+        active: location.pathname === "/dashboard/all-task",
+        pageKey: "all-task",
         showFor: ["admin", "user"],
       },
+      // {
+      //   href: "#",
+      //   label: "Data",
+      //   icon: Database,
+      //   active: location.pathname.includes("/dashboard/data"),
+      //   submenu: true,
+      //   pageKey: "data",
+      //   showFor: ["admin", "user"],
+      // },
       {
         href: "/dashboard/mis-report",
         label: "MIS Report",
@@ -235,18 +250,19 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode, onScro
       // Check if user has role permission
       const hasRolePermission = route.showFor.includes(userRole);
 
-      // Check page access
-      let hasPageAccess = true;
-      if (accessiblePages.length > 0 && accessiblePages[0] !== "") {
-        // If page_access is specified, check if route is included
-        hasPageAccess = accessiblePages.includes(route.pageKey);
-        console.log(`Checking ${route.label} (${route.pageKey}): ${hasPageAccess ? 'YES' : 'NO'}`);
+      // 🔥 ADMIN SHOULD SEE EVERYTHING
+      if (userRole === "admin") {
+        return hasRolePermission;
       }
 
-      const shouldShow = hasRolePermission && hasPageAccess;
-      console.log(`Route: ${route.label} - Role: ${hasRolePermission}, Page: ${hasPageAccess}, Show: ${shouldShow}`);
+      // 👤 USER: apply page_access restriction
+      let hasPageAccess = true;
+      if (accessiblePages.length > 0 && accessiblePages[0] !== "") {
+        hasPageAccess = accessiblePages.includes(route.pageKey);
+      }
 
-      return shouldShow;
+      return hasRolePermission && hasPageAccess;
+
     });
 
     console.log("DEBUG - Final filtered routes:", filteredRoutes.map(r => r.label));

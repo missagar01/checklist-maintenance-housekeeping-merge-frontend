@@ -170,6 +170,7 @@ import Setting from "./pages/Setting"
 import MisReport from "./pages/MisReport"
 import Machines from "./pages/admin/maintenance/machines"
 import NewMachine from "./pages/admin/maintenance/newMachine"
+import UnifiedTaskPage from "./pages/admin/UnifiedTaskPage"
 
 
 // Auth wrapper component to protect routes
@@ -231,10 +232,10 @@ function App() {
         />
 
         <Route path="/dashboard/machines/new" element={
-            <ProtectedRoute allowedRoles={['admin', 'user']}>
-              <NewMachine />
-            </ProtectedRoute>
-          } />
+          <ProtectedRoute allowedRoles={['admin', 'user']}>
+            <NewMachine />
+          </ProtectedRoute>
+        } />
 
         {/* Assign Task routes */}
         <Route
@@ -269,6 +270,15 @@ function App() {
           element={
             <ProtectedRoute>
               <AccountDataPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard/all-task"
+          element={
+            <ProtectedRoute>
+              <UnifiedTaskPage />
             </ProtectedRoute>
           }
         />
@@ -318,6 +328,7 @@ function App() {
         <Route path="/admin/machines" element={<Navigate to="/dashboard/machines" replace />} />
         <Route path="/admin/assign-task" element={<Navigate to="/dashboard/assign-task" replace />} />
         <Route path="/admin/delegation-task" element={<Navigate to="/dashboard/delegation-task" replace />} />
+        <Route path="/admin/all-task" element={<Navigate to="/dashboard/all-task" replace />} />
         <Route path="/admin/mis-report" element={<Navigate to="/dashboard/mis-report" replace />} />
         <Route path="/admin/data/:category" element={<Navigate to="/dashboard/data/:category" replace />} />
         <Route path="/user/*" element={<Navigate to="/dashboard/admin" replace />} />

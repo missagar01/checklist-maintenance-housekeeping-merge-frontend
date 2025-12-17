@@ -90,8 +90,23 @@ const buildContext = (department, machineName, location) => {
 // =============================================================================
 // CHECKLIST TASK NORMALIZER
 // =============================================================================
-export const normalizeChecklistTask = (task) => {
+export const normalizeChecklistTask = (task, isHistory = false) => {
     if (!task) return null;
+
+    // Determine final status
+    // If it's from history source (isHistory=true), force it to 'Completed' (unless it was explicitly 'No'/'Not Done')
+    let rawStatus = task.status || 'Pending';
+    let unifiedStatus = getUnifiedStatus(rawStatus);
+
+    if (isHistory || task.submission_date) {
+        // If it was explicitly 'No', we might want to keep that distinction
+        if (rawStatus === 'No' || rawStatus === 'Not Done') {
+            unifiedStatus = 'Not Done';
+        } else {
+            unifiedStatus = 'Completed';
+            rawStatus = 'Completed';
+        }
+    }
 
     return {
         id: task.task_id,
@@ -106,8 +121,8 @@ export const normalizeChecklistTask = (task) => {
         assignedToSecondary: task.doer_name2 || '—',
         dueDate: task.task_start_date,
         dueDateFormatted: formatDate(task.task_start_date),
-        status: (task.submission_date && (!task.status || task.status === 'Pending')) ? 'Completed' : getUnifiedStatus(task.status),
-        originalStatus: (task.submission_date && (!task.status || task.status === 'Pending')) ? 'Completed' : (task.status || 'Pending'),
+        status: unifiedStatus,
+        originalStatus: rawStatus,
         priority: normalizePriority(task.priority),
 
         // Schedule & Rules
@@ -267,28 +282,28 @@ export const normalizeHousekeepingTask = (task) => {
 // =============================================================================
 // UNIFIED NORMALIZER
 // =============================================================================
-export const normalizeAllTasks = (checklistTasks = [], maintenanceTasks = [], housekeepingTasks = []) => {
-    const normalized = [];
+export const normalizeAllTasks = (checklistTasks = [], maintenanceTasks = [], housekeepingTasks = [], isHistory = false) => {
+    // Normalize Checklist tasks
+    const normalizedChecklist = checklistTasks
+        .map(task => normalizeChecklistTask(task, isHistory))
+        .filter(task => task !== null);
 
-    // Normalize checklist tasks
-    checklistTasks.forEach(task => {
-        const normalizedTask = normalizeChecklistTask(task);
-        if (normalizedTask) normalized.push(normalizedTask);
-    });
+    // Normalize Maintenance tasks
+    const normalizedMaintenance = maintenanceTasks
+        .map(normalizeMaintenanceTask)
+        .filter(task => task !== null);
 
-    // Normalize maintenance tasks
-    maintenanceTasks.forEach(task => {
-        const normalizedTask = normalizeMaintenanceTask(task);
-        if (normalizedTask) normalized.push(normalizedTask);
-    });
+    // Normalize Housekeeping tasks
+    const normalizedHousekeeping = housekeepingTasks
+        .map(normalizeHousekeepingTask)
+        .filter(task => task !== null);
 
-    // Normalize housekeeping tasks
-    housekeepingTasks.forEach(task => {
-        const normalizedTask = normalizeHousekeepingTask(task);
-        if (normalizedTask) normalized.push(normalizedTask);
-    });
-
-    return normalized;
+    // Combine all
+    return [
+        ...normalizedChecklist,
+        ...normalizedMaintenance,
+        ...normalizedHousekeeping
+    ];
 };
 
 // =============================================================================

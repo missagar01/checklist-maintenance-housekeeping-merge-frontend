@@ -29,7 +29,7 @@ const MaintenanceDashboard = () => {
 
   const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "/api"
   const role = localStorage.getItem("role");
-const username = localStorage.getItem("user-name"); // your login stores `user-name`
+  const username = localStorage.getItem("user-name"); // your login stores `user-name`
 
 
   const formatIndianCurrency = (num) => {
@@ -48,22 +48,22 @@ const username = localStorage.getItem("user-name"); // your login stores `user-n
     const fetchDashboardData = async () => {
       try {
         const [statsRes, machineCostRes, deptRes, freqRes] = await Promise.all([
-  axios.get(`${BACKEND_URL}/maintenance-dashboard/stats`, {
-    params: { role, username }
-  }),
+          axios.get(`${BACKEND_URL}/maintenance-dashboard/stats`, {
+            params: { role, username }
+          }),
 
-  axios.get(`${BACKEND_URL}/maintenance-dashboard/maintenance-costs`, {
-    params: { role, username }
-  }),
+          axios.get(`${BACKEND_URL}/maintenance-dashboard/maintenance-costs`, {
+            params: { role, username }
+          }),
 
-  axios.get(`${BACKEND_URL}/maintenance-dashboard/department-costs`, {
-    params: { role, username }
-  }),
+          axios.get(`${BACKEND_URL}/maintenance-dashboard/department-costs`, {
+            params: { role, username }
+          }),
 
-  axios.get(`${BACKEND_URL}/maintenance-dashboard/frequencies`, {
-    params: { role, username }
-  }),
-]);
+          axios.get(`${BACKEND_URL}/maintenance-dashboard/frequencies`, {
+            params: { role, username }
+          }),
+        ]);
 
 
         const stats = statsRes.data.data

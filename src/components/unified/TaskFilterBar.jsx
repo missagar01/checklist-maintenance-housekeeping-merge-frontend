@@ -1,14 +1,6 @@
 import { useState, useMemo } from "react";
-import { Search, X, History, Clock } from "lucide-react";
+import { Search, X, History, Clock, ListFilter } from "lucide-react";
 
-/**
- * TaskFilterBar - SIMPLIFIED Filter bar for unified task table
- * Made easy to understand for all users
- * Now with Pending/History toggle (default: Pending)
- * 
- * @param {object} filters - Current filter state
- * @param {function} onFiltersChange - Filter change handler
- */
 export default function TaskFilterBar({
     filters = {},
     onFiltersChange,
@@ -16,7 +8,7 @@ export default function TaskFilterBar({
     const {
         searchTerm = "",
         sourceSystem = "",
-        status = "Pending",  // Default to Pending
+        status = "",  // Default to empty to show all
     } = filters;
 
     const handleChange = (key, value) => {
@@ -27,7 +19,7 @@ export default function TaskFilterBar({
         onFiltersChange({
             searchTerm: "",
             sourceSystem: "",
-            status: "Pending",  // Reset to Pending (default)
+            status: "",  // Reset to empty (show all)
             priority: "",
             assignedTo: "",
             department: "",
@@ -37,36 +29,47 @@ export default function TaskFilterBar({
     };
 
     const hasActiveFilters = useMemo(() => {
-        return searchTerm || sourceSystem || (status && status !== "Pending");
+        return searchTerm || sourceSystem || status;
     }, [searchTerm, sourceSystem, status]);
 
     return (
         <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-4">
 
-            {/* MAIN TOGGLE: Pending Tasks vs History */}
+            {/* MAIN TOGGLE: All vs Pending vs History */}
             <div className="flex items-center gap-2 p-2 bg-gray-100 rounded-lg">
+                <button
+                    onClick={() => handleChange("status", "")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${!status
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                >
+                    <ListFilter className="h-4 w-4" />
+                    <span>📊 All Tasks</span>
+                </button>
                 <button
                     onClick={() => handleChange("status", "Pending")}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${status === "Pending"
-                            ? "bg-blue-600 text-white shadow-md"
-                            : "bg-white text-gray-700 hover:bg-gray-50"
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
                         }`}
                 >
                     <Clock className="h-4 w-4" />
-                    <span>⏳ Pending Tasks</span>
+                    <span>⏳ Pending Only</span>
                 </button>
                 <button
                     onClick={() => handleChange("status", "Completed")}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${status === "Completed"
-                            ? "bg-green-600 text-white shadow-md"
-                            : "bg-white text-gray-700 hover:bg-gray-50"
+                        ? "bg-green-600 text-white shadow-md"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
                         }`}
                 >
                     <History className="h-4 w-4" />
-                    <span>✅ History (Completed)</span>
+                    <span>✅ Completed Only</span>
                 </button>
             </div>
 
+            {/* Rest of your component remains the same */}
             {/* Simple Search Box */}
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -86,8 +89,8 @@ export default function TaskFilterBar({
                     <button
                         onClick={() => handleChange("sourceSystem", "")}
                         className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${sourceSystem === ""
-                                ? "bg-blue-600 text-white ring-2 ring-blue-300"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            ? "bg-blue-600 text-white ring-2 ring-blue-300"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                             }`}
                     >
                         📊 All Tasks
@@ -95,8 +98,8 @@ export default function TaskFilterBar({
                     <button
                         onClick={() => handleChange("sourceSystem", sourceSystem === "checklist" ? "" : "checklist")}
                         className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${sourceSystem === "checklist"
-                                ? "bg-purple-600 text-white ring-2 ring-purple-300"
-                                : "bg-purple-100 text-purple-700 hover:bg-purple-200"
+                            ? "bg-purple-600 text-white ring-2 ring-purple-300"
+                            : "bg-purple-100 text-purple-700 hover:bg-purple-200"
                             }`}
                     >
                         ✅ Checklist
@@ -104,8 +107,8 @@ export default function TaskFilterBar({
                     <button
                         onClick={() => handleChange("sourceSystem", sourceSystem === "maintenance" ? "" : "maintenance")}
                         className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${sourceSystem === "maintenance"
-                                ? "bg-blue-600 text-white ring-2 ring-blue-300"
-                                : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                            ? "bg-blue-600 text-white ring-2 ring-blue-300"
+                            : "bg-blue-100 text-blue-700 hover:bg-blue-200"
                             }`}
                     >
                         🔧 Maintenance
@@ -113,8 +116,8 @@ export default function TaskFilterBar({
                     <button
                         onClick={() => handleChange("sourceSystem", sourceSystem === "housekeeping" ? "" : "housekeeping")}
                         className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${sourceSystem === "housekeeping"
-                                ? "bg-green-600 text-white ring-2 ring-green-300"
-                                : "bg-green-100 text-green-700 hover:bg-green-200"
+                            ? "bg-green-600 text-white ring-2 ring-green-300"
+                            : "bg-green-100 text-green-700 hover:bg-green-200"
                             }`}
                     >
                         🏠 Housekeeping

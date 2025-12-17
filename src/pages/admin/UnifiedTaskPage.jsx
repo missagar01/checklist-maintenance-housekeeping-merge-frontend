@@ -32,25 +32,27 @@ export default function UnifiedTaskPage() {
     const [housekeepingError, setHousekeepingError] = useState(null)
     const [userRole, setUserRole] = useState("")
     const [username, setUsername] = useState("")
-    const [showHistory, setShowHistory] = useState(false)  // Toggle between pending and history
+    const [showHistory, setShowHistory] = useState(false)
+    const [systemAccess, setSystemAccess] = useState([]) // New state for system access
 
     const dispatch = useDispatch()
 
-    // Redux selectors
+    // Redux selectors - ADD THIS SECTION
     const checklistState = useSelector((state) => state.checkList)
     const maintenanceState = useSelector((state) => state.maintenance)
 
+    // Destructure variables from redux state - ADD THIS SECTION
     const {
         checklist = [],
-        history: checklistHistory = [],  // Add history from checklist
+        history: checklistHistory = [],
         loading: checklistLoading,
-        hasMore: checklistHasMore = false,  // For pagination
-        currentPage: checklistCurrentPage = 1,  // For pagination
+        hasMore: checklistHasMore = false,
+        currentPage: checklistCurrentPage = 1,
     } = checklistState || {}
 
     const {
         tasks: maintenanceTasks = [],
-        history: maintenanceHistory = [],  // Add history from maintenance
+        history: maintenanceHistory = [],
         loading: maintenanceLoading,
         machineNames = [],
         assignedPersonnel = []
@@ -59,61 +61,86 @@ export default function UnifiedTaskPage() {
     // Housekeeping history state
     const [housekeepingHistory, setHousekeepingHistory] = useState([])
 
-    // Debug logging - remove after fixing
-    useEffect(() => {
-        console.log("=== DEBUG: Data Sources ===")
-        console.log("Checklist pending:", checklist?.length || 0)
-        console.log("Checklist history:", checklistHistory?.length || 0)
-        console.log("Maintenance pending:", maintenanceTasks?.length || 0)
-        console.log("Maintenance history:", maintenanceHistory?.length || 0)
-        console.log("Housekeeping pending:", housekeepingTasks?.length || 0)
-        console.log("Housekeeping history:", housekeepingHistory?.length || 0)
-    }, [checklist, checklistHistory, maintenanceTasks, maintenanceHistory, housekeepingTasks, housekeepingHistory])
-
     // Load user info
     useEffect(() => {
         const role = localStorage.getItem("role")
         const user = localStorage.getItem("user-name")
+        const access = localStorage.getItem("system_access") || ""
+
         setUserRole(role || "")
         setUsername(user || "")
+        setSystemAccess(access.split(',').map(item => item.trim().toLowerCase()))
     }, [])
 
-    // Load all data sources (pending + history)
+    // Function to check if user has access to a system
+    const hasSystemAccess = useCallback((system) => {
+        if (systemAccess.length === 0) return true; // If no restriction, allow all
+        return systemAccess.includes(system.toLowerCase());
+    }, [systemAccess])
+
+    // Load housekeeping history data
+    const loadHousekeepingHistoryData = useCallback(async () => {
+        try {
+            const data = await getHistoryTasks({})
+            console.log("=== DEBUG: Housekeeping history loaded ===", data?.length || 0)
+            setHousekeepingHistory(data || [])
+        } catch (error) {
+            console.error("Error loading housekeeping history:", error)
+            setHousekeepingHistory([])
+        }
+    }, [])
+
+    // Combine loading states
+    const isLoading = checklistLoading || maintenanceLoading || housekeepingLoading
+
+    // Load all data sources (pending + history) based on system_access
     useEffect(() => {
         const role = localStorage.getItem("role")
         const user = localStorage.getItem("user-name")
 
         console.log("=== DEBUG: Loading Data ===")
         console.log("User role:", role, "Username:", user)
+        console.log("System access:", systemAccess)
 
-        // Load checklist data (pending + history) - page 1
-        dispatch(checklistData(1))
-        dispatch(checklistHistoryData(1))
-
-        // Load maintenance data (pending + history)
-        dispatch(fetchPendingMaintenanceTasks({
-            page: 1,
-            userId: role === "user" ? user : null
-        }))
-        dispatch(fetchCompletedMaintenanceTasks({ page: 1, filters: {} }))
-        dispatch(fetchUniqueMachineNames())
-        dispatch(fetchUniqueAssignedPersonnel())
-
-        // Load housekeeping data (pending + history)
-        loadHousekeepingData()
-        loadHousekeepingHistoryData()
-    }, [dispatch])
-
-    // Callback to load more checklist data (called on scroll)
-    const loadMoreChecklistData = useCallback(() => {
-        if (checklistHasMore && !checklistLoading) {
-            console.log("=== DEBUG: Loading more checklist data, page:", checklistCurrentPage + 1)
-            dispatch(checklistData(checklistCurrentPage + 1))
+        // Load checklist data only if user has access
+        if (hasSystemAccess('checklist') || systemAccess.length === 0) {
+            dispatch(checklistData(1))
+            dispatch(checklistHistoryData(1))
+        } else {
+            console.log("User doesn't have access to checklist system")
         }
-    }, [checklistHasMore, checklistLoading, checklistCurrentPage, dispatch])
 
-    // Load housekeeping pending data
+        // Load maintenance data only if user has access
+        if (hasSystemAccess('maintenance') || systemAccess.length === 0) {
+            dispatch(fetchPendingMaintenanceTasks({
+                page: 1,
+                userId: role === "user" ? user : null
+            }))
+            dispatch(fetchCompletedMaintenanceTasks({ page: 1, filters: {} }))
+            dispatch(fetchUniqueMachineNames())
+            dispatch(fetchUniqueAssignedPersonnel())
+        } else {
+            console.log("User doesn't have access to maintenance system")
+        }
+
+        // Load housekeeping data only if user has access
+        if (hasSystemAccess('housekeeping') || systemAccess.length === 0) {
+            loadHousekeepingData()
+            loadHousekeepingHistoryData()
+        } else {
+            console.log("User doesn't have access to housekeeping system")
+        }
+    }, [dispatch, hasSystemAccess, systemAccess])
+
+    // Update loadHousekeepingData function to respect system_access
     const loadHousekeepingData = useCallback(async () => {
+        // Check if user has housekeeping access
+        if (!hasSystemAccess('housekeeping') && systemAccess.length > 0) {
+            console.log("User doesn't have access to housekeeping system")
+            setHousekeepingTasks([])
+            return
+        }
+
         setHousekeepingLoading(true)
         setHousekeepingError(null)
         try {
@@ -132,50 +159,81 @@ export default function UnifiedTaskPage() {
         } finally {
             setHousekeepingLoading(false)
         }
-    }, [])
+    }, [hasSystemAccess, systemAccess])
 
-    // Load housekeeping history data
-    const loadHousekeepingHistoryData = useCallback(async () => {
-        try {
-            const data = await getHistoryTasks({})
-            console.log("=== DEBUG: Housekeeping history loaded ===", data?.length || 0)
-            setHousekeepingHistory(data || [])
-        } catch (error) {
-            console.error("Error loading housekeeping history:", error)
-            setHousekeepingHistory([])
+    // Callback to load more checklist data (called on scroll)
+    const loadMoreChecklistData = useCallback(() => {
+        if (checklistHasMore && !checklistLoading) {
+            console.log("=== DEBUG: Loading more checklist data, page:", checklistCurrentPage + 1)
+            dispatch(checklistData(checklistCurrentPage + 1))
         }
-    }, [])
+    }, [checklistHasMore, checklistLoading, checklistCurrentPage, dispatch])
 
-    // Combine loading states
-    const isLoading = checklistLoading || maintenanceLoading || housekeepingLoading
-
-    // Normalize and merge all tasks - combine pending and history based on filter
+    // Normalize and merge all tasks - filter based on system_access
     const allTasks = useMemo(() => {
-        // Combine pending tasks from all sources
+        // Filter checklist tasks based on access
+        const checklistFiltered = hasSystemAccess('checklist') || systemAccess.length === 0
+            ? (Array.isArray(checklist) ? checklist : [])
+            : []
+
+        const checklistHistoryFiltered = hasSystemAccess('checklist') || systemAccess.length === 0
+            ? (Array.isArray(checklistHistory) ? checklistHistory : [])
+            : []
+
+        // Filter maintenance tasks based on access
+        const maintenanceFiltered = hasSystemAccess('maintenance') || systemAccess.length === 0
+            ? (Array.isArray(maintenanceTasks) ? maintenanceTasks : [])
+            : []
+
+        const maintenanceHistoryFiltered = hasSystemAccess('maintenance') || systemAccess.length === 0
+            ? (Array.isArray(maintenanceHistory) ? maintenanceHistory : [])
+            : []
+
+        // Filter housekeeping tasks based on access
+        const housekeepingFiltered = hasSystemAccess('housekeeping') || systemAccess.length === 0
+            ? (Array.isArray(housekeepingTasks) ? housekeepingTasks : [])
+            : []
+
+        const housekeepingHistoryFiltered = hasSystemAccess('housekeeping') || systemAccess.length === 0
+            ? (Array.isArray(housekeepingHistory) ? housekeepingHistory : [])
+            : []
+
+        // Combine pending tasks from all accessible sources
         const pendingTasks = normalizeAllTasks(
-            Array.isArray(checklist) ? checklist : [],
-            Array.isArray(maintenanceTasks) ? maintenanceTasks : [],
-            Array.isArray(housekeepingTasks) ? housekeepingTasks : []
+            checklistFiltered,
+            maintenanceFiltered,
+            housekeepingFiltered
         )
 
-        // Combine history tasks from all sources
+        // Combine history tasks from all accessible sources
         const historyTasks = normalizeAllTasks(
-            Array.isArray(checklistHistory) ? checklistHistory : [],
-            Array.isArray(maintenanceHistory) ? maintenanceHistory : [],
-            Array.isArray(housekeepingHistory) ? housekeepingHistory : []
+            checklistHistoryFiltered,
+            maintenanceHistoryFiltered,
+            housekeepingHistoryFiltered,
+            true // isHistory flag
         )
 
-        // Combine all tasks (pending + history) - filter will be applied in the table
+        // Combine all tasks (pending + history)
         const allCombined = [...pendingTasks, ...historyTasks]
 
-        console.log("=== DEBUG: All tasks ===", {
-            pending: pendingTasks.length,
-            history: historyTasks.length,
+        console.log("=== DEBUG: Filtered tasks ===", {
+            checklist: checklistFiltered.length,
+            maintenance: maintenanceFiltered.length,
+            housekeeping: housekeepingFiltered.length,
             total: allCombined.length
         })
 
         return allCombined
-    }, [checklist, checklistHistory, maintenanceTasks, maintenanceHistory, housekeepingTasks, housekeepingHistory])
+    }, [
+        checklist,
+        checklistHistory,
+        maintenanceTasks,
+        maintenanceHistory,
+        housekeepingTasks,
+        housekeepingHistory,
+        hasSystemAccess,
+        systemAccess
+    ])
 
     // Get unique assignees from all sources
     const allAssignees = useMemo(() => {
@@ -219,13 +277,13 @@ export default function UnifiedTaskPage() {
         const highPriority = allTasks.filter(t => t.priority === 'High').length
 
         const bySource = {
-            checklist: allTasks.filter(t => t.sourceSystem === 'checklist').length,
-            maintenance: allTasks.filter(t => t.sourceSystem === 'maintenance').length,
-            housekeeping: allTasks.filter(t => t.sourceSystem === 'housekeeping').length,
+            checklist: allTasks.filter(t => t.sourceSystem === 'checklist' && hasSystemAccess('checklist')).length,
+            maintenance: allTasks.filter(t => t.sourceSystem === 'maintenance' && hasSystemAccess('maintenance')).length,
+            housekeeping: allTasks.filter(t => t.sourceSystem === 'housekeeping' && hasSystemAccess('housekeeping')).length,
         }
 
         return { total, completed, pending, highPriority, bySource }
-    }, [allTasks])
+    }, [allTasks, hasSystemAccess])
 
     // Handle task update
     const handleUpdateTask = useCallback(async (updateData) => {
@@ -382,16 +440,23 @@ export default function UnifiedTaskPage() {
                                     <p className="text-xl font-bold">{statistics.total}</p>
                                 </div>
                             </div>
+
                             <div className="mt-2 flex gap-2 text-xs text-gray-500">
-                                <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
-                                    {statistics.bySource.checklist} Checklist
-                                </span>
-                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
-                                    {statistics.bySource.maintenance} Maint.
-                                </span>
-                                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
-                                    {statistics.bySource.housekeeping} HK
-                                </span>
+                                {hasSystemAccess('checklist') && (
+                                    <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                        {statistics.bySource.checklist} Checklist
+                                    </span>
+                                )}
+                                {hasSystemAccess('maintenance') && (
+                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                        {statistics.bySource.maintenance} Maint.
+                                    </span>
+                                )}
+                                {hasSystemAccess('housekeeping') && (
+                                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
+                                        {statistics.bySource.housekeeping} HK
+                                    </span>
+                                )}
                             </div>
                         </div>
 
