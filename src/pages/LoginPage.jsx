@@ -13,6 +13,15 @@ const LoginPage = () => {
 
   const [isDataLoading, setIsDataLoading] = useState(false)
   const [isLoginLoading, setIsLoginLoading] = useState(false)
+
+  // Check if user is already logged in (session persisted in localStorage)
+  useEffect(() => {
+    const storedUsername = localStorage.getItem('user-name');
+    if (storedUsername) {
+      // User is already logged in, redirect to dashboard
+      navigate("/dashboard/admin");
+    }
+  }, [navigate]);
   const [masterData, setMasterData] = useState({
     userCredentials: {},
     userRoles: {}
