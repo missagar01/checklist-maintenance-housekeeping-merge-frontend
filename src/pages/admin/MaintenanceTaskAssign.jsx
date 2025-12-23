@@ -757,8 +757,6 @@ function AssignTask() {
       // Don't reset selectedTaskType - let user continue with the same task type
       // setSelectedTaskType("Select Task Type");
       setStartDate("");
-      setEndDate("");
-      setEndTaskDate("");
       setFrequency("");
       setWorkDescription("");
       setSelectedPriority("");
@@ -773,6 +771,12 @@ function AssignTask() {
       setTemperature("");
       setImageFile(null);
       setGeneratedTasks([]);
+      setEndTaskDate("");
+
+      // ✅ Refetch working days to restore endDate for frequency dropdown
+      if (selectedTaskType === "Maintenance") {
+        fetchWorkingDaysCalendar();
+      }
       // Don't reset departments either - keeps context for next task
       // setSelectedDepartment("");
       // setMachineDepartment("");
@@ -1194,6 +1198,7 @@ function AssignTask() {
                     </label>
                     <select
                       id="frequency"
+                      value={frequency}
                       onChange={(e) => setFrequency(e.target.value)}
                       className="w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       disabled={availableFrequencies.length === 0}
