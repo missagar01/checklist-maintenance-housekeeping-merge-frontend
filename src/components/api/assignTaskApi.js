@@ -5,25 +5,54 @@ import axios from './axios';
 
 export const pushAssignTask = async (taskData) => {
     try {
-        // console.log('Sending data to backend:', taskData);
-
         const response = await axios.post(`/housekeeping-dashboard/assigntask/generate`, taskData, {
             headers: {
                 'Content-Type': 'application/json',
             },
-            // Remove timeout completely or set it very high
-            timeout: 0, // No timeout - wait indefinitely
+            timeout: 0,
         });
 
         return response.data;
 
     } catch (error) {
-        console.error('API Error details:');
-
-        if (error.code === 'ECONNABORTED') {
-            console.log('Request was aborted - backend might be processing slowly');
-        }
-
         throw error;
     }
+};
+
+export const getDepartments = async () => {
+    try {
+        const response = await axios.get('/dashboard/departments');
+        return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+        return [];
+    }
+};
+
+export const getLocations = async () => {
+  try {
+    const response = await axios.get('/locations');
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+export const getUserDepartments = async (silent = false) => {
+  try {
+    const response = await axios.get('/users/departments');
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    if (error.response?.status === 403 || error.silent) {
+      return [];
+    }
+    return [];
+  }
+};
+
+export const createLocation = async (payload) => {
+    if (!payload) {
+        throw new Error('Department payload required');
+    }
+    const response = await axios.post('/locations', payload);
+    return response.data;
 };

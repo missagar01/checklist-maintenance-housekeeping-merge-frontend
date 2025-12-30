@@ -11,7 +11,6 @@ const LoginPage = () => {
   const { isLoggedIn, userData, error } = useSelector((state) => state.login);
   const dispatch = useDispatch();
 
-  const [isDataLoading, setIsDataLoading] = useState(false)
   const [isLoginLoading, setIsLoginLoading] = useState(false)
 
   // Check if user is already logged in (session persisted in localStorage)
@@ -22,10 +21,6 @@ const LoginPage = () => {
       navigate("/dashboard/admin");
     }
   }, [navigate]);
-  const [masterData, setMasterData] = useState({
-    userCredentials: {},
-    userRoles: {}
-  })
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -44,35 +39,53 @@ const LoginPage = () => {
   // In LoginPage.jsx - update the useEffect
   useEffect(() => {
     if (isLoggedIn && userData) {
-      console.log("User Data received:", userData);
+      // Store all user data in localStorage - optimized batch operation
+      const dataToStore = {
+        'user-name': userData.user_name || userData.username || "",
+        'role': userData.role || "",
+        'email_id': userData.email_id || userData.email || "",
+      };
 
-      // Store all user data in localStorage
-      localStorage.setItem('user-name', userData.user_name || userData.username || "");
-      localStorage.setItem('role', userData.role || "");
-      localStorage.setItem('email_id', userData.email_id || userData.email || "");
+      // Batch localStorage operations
+      Object.entries(dataToStore).forEach(([key, value]) => {
+        if (value) {
+          localStorage.setItem(key, value);
+        } else {
+          localStorage.removeItem(key);
+        }
+      });
+
+      // Store user_access
+      if (userData.user_access) {
+        localStorage.setItem('user_access', userData.user_access);
+        localStorage.setItem('userAccess', userData.user_access);
+      } else {
+        localStorage.removeItem('user_access');
+        localStorage.removeItem('userAccess');
+      }
+
+      // Store user_access1 (for housekeeping)
+      if (userData.user_access1) {
+        localStorage.setItem('user_access1', userData.user_access1);
+        localStorage.setItem('userAccess1', userData.user_access1);
+      } else {
+        localStorage.removeItem('user_access1');
+        localStorage.removeItem('userAccess1');
+      }
 
       // Store page_access if available
       if (userData.page_access) {
         localStorage.setItem('page_access', userData.page_access);
-        console.log("✅ Stored page_access in localStorage:", userData.page_access);
       } else {
-        console.log("❌ No page_access in userData");
         localStorage.removeItem('page_access');
       }
 
       // Store system_access
       if (userData.system_access) {
         localStorage.setItem('system_access', userData.system_access);
-        console.log("✅ Stored system_access in localStorage:", userData.system_access);
       } else {
-        console.log("❌ No system_access in userData");
         localStorage.removeItem('system_access');
       }
-
-      console.log("✅ Login successful, redirecting to dashboard");
-      console.log("✅ User role:", userData.role);
-      console.log("✅ Page access:", userData.page_access);
-      console.log("✅ System access:", userData.system_access);
 
       navigate("/dashboard/admin")
     } else if (error) {
@@ -81,47 +94,8 @@ const LoginPage = () => {
     }
   }, [isLoggedIn, userData, error, navigate]);
 
-  useEffect(() => {
-    let subscription;
-
-    const checkUserStatus = async () => {
-      const username = localStorage.getItem('user-name');
-
-      if (!username) return;
-
-      // ✅ Subscribe to Supabase for real-time user status updates
-      subscription = supabase
-        .channel('user-status-watch')
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'users',
-            filter: `user_name=eq.${username}`,
-          },
-          (payload) => {
-            const updatedUser = payload.new;
-            if (updatedUser.status !== 'active') {
-              // 🚨 Auto logout when status becomes inactive
-              localStorage.clear();
-              setToast({ show: true, message: "Your account has been deactivated.", type: "error" });
-              setTimeout(() => {
-                navigate("/login");
-              }, 2000);
-            }
-          }
-        )
-        .subscribe();
-    };
-
-    checkUserStatus();
-
-    // Cleanup subscription on unmount
-    return () => {
-      if (subscription) supabase.removeChannel(subscription);
-    };
-  }, []);
+  // Removed supabase subscription - not needed for current implementation
+  // User status is checked on login and session is managed via localStorage
 
 
 
@@ -188,9 +162,9 @@ const LoginPage = () => {
             <button
               type="submit"
               className="w-full py-2 px-4 gradient-bg text-white rounded-md font-medium gradient-bg:hover disabled:opacity-50"
-              disabled={isLoginLoading || isDataLoading}
+              disabled={isLoginLoading}
             >
-              {isLoginLoading ? "Logging in..." : isDataLoading ? "Loading..." : "Login"}
+              {isLoginLoading ? "Logging in..." : "Login"}
             </button>
           </div>
         </form>

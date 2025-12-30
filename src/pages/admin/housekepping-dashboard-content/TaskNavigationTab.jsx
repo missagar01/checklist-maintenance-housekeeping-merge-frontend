@@ -2,8 +2,9 @@
 "use client"
 
 import { Filter, ChevronDown, ChevronUp } from "lucide-react"
-import { useState, useEffect, useCallback } from "react"
-import taskApi from "../../../components/api/dashbaordTaskApi" // Adjust path as needed
+import { useState, useEffect, useCallback, useRef } from "react"
+import { useDispatch, useSelector } from "react-redux"
+import { fetchHousekeepingTaskCounts, fetchHousekeepingDashboardTasks } from "../../../redux/slice/housekeepingSlice.js"
 
 export default function TaskNavigationTabs({
   dashboardType,
@@ -16,18 +17,31 @@ export default function TaskNavigationTabs({
   departmentFilter
 }) 
 {
+  const dispatch = useDispatch()
+  const { loadingDashboardTasks, taskCounts } = useSelector((state) => state.housekeeping)
+  
   const [currentPage, setCurrentPage] = useState(1)
   const [displayedTasks, setDisplayedTasks] = useState([])
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMoreData, setHasMoreData] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
-  const [isFilterExpanded, setIsFilterExpanded] = useState(false)
-  const [taskCounts, setTaskCounts] = useState({
-    recent: 0,
-    upcoming: 0,
-    overdue: 0
-  })
+  const totalItemsLoadedRef = useRef(0) // Track total items loaded from API (before filtering)
+  const [doerName2Selections, setDoerName2Selections] = useState({})
+  const [userRole, setUserRole] = useState("")
+  const scrollContainerRef = useRef(null)
   const itemsPerPage = 50
+
+  const DOER2_OPTIONS = [
+    "Sarad Behera",
+    "Tikeshware Chakradhari(KH)",
+    "Makhan Lal",
+  ]
+
+  // Get user role
+  useEffect(() => {
+    const role = localStorage.getItem("role") || ""
+    setUserRole(role)
+  }, [])
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -35,6 +49,7 @@ export default function TaskNavigationTabs({
     setDisplayedTasks([])
     setHasMoreData(true)
     setTotalCount(0)
+    totalItemsLoadedRef.current = 0
   }, [taskView, dashboardType, dashboardStaffFilter, departmentFilter])
 
   // Function to get task status based on submission_date
@@ -47,62 +62,110 @@ export default function TaskNavigationTabs({
   }
 
   // Function to load all task counts
+  // Backend automatically filters by user_access from JWT token for user role
   const loadTaskCounts = useCallback(async () => {
     try {
-      const departmentFilters = departmentFilter && departmentFilter !== "all" ? { department: departmentFilter } : {};
-      const [recentData, upcomingData, overdueData] = await Promise.all([
-        taskApi.getTodayCount(departmentFilters),
-        taskApi.getTomorrowCount(departmentFilters),
-        taskApi.getOverdueCount(departmentFilters)
-      ]);
-
-      setTaskCounts({
-        recent: recentData.count || 0,
-        upcoming: upcomingData.count || 0,
-        overdue: overdueData.count || 0
-      });
-
-    } catch (error) {
-      console.error('Error loading task counts:', error);
+      // Backend gets user_access from JWT token automatically for user role
+      // For admin, pass department filter if selected
+      const role = localStorage.getItem("role") || ""
+      let departmentFilters = {}
+      
+      if (role.toLowerCase() !== "user" && departmentFilter && departmentFilter !== "all") {
+        // For admin, use selected department filter
+        departmentFilters.department = departmentFilter
+      }
+      // For user role, backend handles filtering from token - no need to pass department
+      
+      await dispatch(fetchHousekeepingTaskCounts(departmentFilters)).unwrap();
+    } catch {
+      // Error handled by Redux
     }
-  }, [departmentFilter]);
+  }, [departmentFilter, dispatch]);
 
-  // Function to load tasks from API with pagination
+  // Function to load tasks from API with pagination - optimized like checklist/maintenance
   const loadTasksFromApi = useCallback(async (page = 1, append = false) => {
-    if (isLoadingMore) return;
+    // Prevent duplicate calls
+    if (isLoadingMore || loadingDashboardTasks) {
+      return;
+    }
+    
+    // Prevent loading if no more data
+    if (append && !hasMoreData) {
+      return;
+    }
 
     try {
       setIsLoadingMore(true)
 
-      let apiData = [];
       let totalCountFromApi = 0;
-      const departmentFilters = departmentFilter && departmentFilter !== "all" ? { department: departmentFilter } : {};
+      let allApiData = [];
+      
+      // Backend automatically filters by user_access from JWT token for user role
+      // For admin, pass department filter if selected
+      const role = localStorage.getItem("role") || ""
+      let departmentFilters = {}
+      
+      if (role.toLowerCase() !== "user" && departmentFilter && departmentFilter !== "all") {
+        // For admin, use selected department filter
+        departmentFilters.department = departmentFilter
+      }
+      // For user role, backend handles filtering from token - no need to pass department
 
-      // Call appropriate API based on taskView with pagination
-      switch (taskView) {
-        case "recent":
-          apiData = await taskApi.getTasksWithFilters("recent", page, itemsPerPage, departmentFilters);
-          totalCountFromApi = (await taskApi.getTodayCount(departmentFilters)).count || 0;
-          break;
-        case "overdue":
-          apiData = await taskApi.getTasksWithFilters("overdue", page, itemsPerPage, departmentFilters);
-          totalCountFromApi = (await taskApi.getOverdueCount(departmentFilters)).count || 0;
-          break;
-        case "upcoming": // Upcoming tasks = tomorrow's tasks
-          apiData = await taskApi.getTasksWithFilters("upcoming", page, itemsPerPage, departmentFilters);
-          totalCountFromApi = (await taskApi.getTomorrowCount(departmentFilters)).count || 0;
-          break;
-        default:
-          apiData = await taskApi.getRecentTasks(departmentFilters);
-          totalCountFromApi = (await taskApi.getTodayCount(departmentFilters)).count || 0;
+      // Map taskView to API taskType
+      let taskType = "recent";
+      if (taskView === "overdue") taskType = "overdue";
+      else if (taskView === "upcoming") taskType = "upcoming";
+      else if (taskView === "recent") taskType = "recent";
+
+      // For initial load, fetch 2 pages (100 items) at once
+      if (!append && page === 1) {
+        const [page1Result, page2Result] = await Promise.all([
+          dispatch(fetchHousekeepingDashboardTasks({
+            taskType,
+            page: 1,
+            limit: itemsPerPage,
+            filters: departmentFilters
+          })).unwrap(),
+          dispatch(fetchHousekeepingDashboardTasks({
+            taskType,
+            page: 2,
+            limit: itemsPerPage,
+            filters: departmentFilters
+          })).unwrap()
+        ]);
+        
+        allApiData = [...(page1Result.items || []), ...(page2Result.items || [])];
+        totalCountFromApi = page1Result.total || 0;
+        setCurrentPage(2); // Set to page 2 since we loaded 2 pages
+      } else {
+        // For subsequent loads, fetch single page
+        const result = await dispatch(fetchHousekeepingDashboardTasks({
+          taskType,
+          page,
+          limit: itemsPerPage,
+          filters: departmentFilters
+        })).unwrap();
+        
+        allApiData = result.items || [];
+        totalCountFromApi = result.total || 0;
       }
 
-      // Set total count from API
+      // Set total count from API - use taskCounts from Redux if available, otherwise use API total
       if (!append) {
-        setTotalCount(totalCountFromApi);
+        // Use taskCounts from Redux based on current taskView
+        let countFromRedux = 0;
+        if (taskView === "recent") {
+          countFromRedux = taskCounts?.recent || 0;
+        } else if (taskView === "upcoming") {
+          countFromRedux = taskCounts?.upcoming || 0;
+        } else if (taskView === "overdue") {
+          countFromRedux = taskCounts?.overdue || 0;
+        }
+        // Use Redux count if available, otherwise use API total
+        setTotalCount(countFromRedux > 0 ? countFromRedux : totalCountFromApi);
       }
 
-      if (!apiData || apiData.length === 0) {
+      if (!allApiData || allApiData.length === 0) {
         setHasMoreData(false)
         if (!append) {
           setDisplayedTasks([])
@@ -112,15 +175,7 @@ export default function TaskNavigationTabs({
       }
 
       // Process the data
-      const processedTasks = apiData.map((task) => {
-        const taskStartDate = task.task_start_date
-        const completionDate = task.submission_date
-
-        let status = "pending"
-        if (completionDate || task.status === 'Yes') {
-          status = "completed"
-        }
-
+      const processedTasks = allApiData.map((task) => {
         return {
           id: task.task_id,
           title: task.task_description,
@@ -135,6 +190,7 @@ export default function TaskNavigationTabs({
           remarks: task.remark || "",
           rawTaskStartDate: task.task_start_date,
           rawSubmissionDate: task.submission_date,
+          doerName2: task.doer_name2 || "", // Add doer_name2 for DOER2 select box
         }
       })
 
@@ -157,32 +213,59 @@ export default function TaskNavigationTabs({
         return true;
       })
 
-      // Check if there's more data before updating state
-      let newDisplayedCount;
+      // Calculate total items loaded from API (before filtering)
+      // Track this in a ref so we can use it synchronously
       if (append) {
-        newDisplayedCount = displayedTasks.length + filteredTasks.length;
-        setDisplayedTasks(prev => [...prev, ...filteredTasks])
+        totalItemsLoadedRef.current = totalItemsLoadedRef.current + allApiData.length;
       } else {
-        newDisplayedCount = filteredTasks.length;
-        setDisplayedTasks(filteredTasks)
+        totalItemsLoadedRef.current = allApiData.length;
+      }
+      const currentTotalLoaded = totalItemsLoadedRef.current;
+
+      // Update displayed tasks
+      if (append) {
+        setDisplayedTasks(prev => {
+          // Avoid duplicates by checking if task already exists
+          const existingIds = new Set(prev.map(t => t.id));
+          const newTasks = filteredTasks.filter(t => !existingIds.has(t.id));
+          return [...prev, ...newTasks];
+        });
+      } else {
+        setDisplayedTasks(filteredTasks);
       }
 
       // Check if there's more data to load
-      const hasMore = filteredTasks.length === itemsPerPage && newDisplayedCount < totalCountFromApi;
+      // Compare total items loaded from API (not filtered count) with total available
+      const hasMore = currentTotalLoaded < totalCountFromApi && allApiData.length > 0;
       setHasMoreData(hasMore);
 
-    } catch (error) {
-      console.error('Error loading tasks:', error)
+    } catch {
+      // Error loading tasks
     } finally {
       setIsLoadingMore(false)
     }
-  }, [taskView, searchQuery, isLoadingMore, itemsPerPage, displayedTasks.length, departmentFilter])
+  }, [taskView, searchQuery, isLoadingMore, itemsPerPage, departmentFilter, loadingDashboardTasks, dispatch, taskCounts, hasMoreData])
+
+  // Update totalCount when taskView or taskCounts change
+  useEffect(() => {
+    if (taskView === "recent") {
+      setTotalCount(taskCounts?.recent || 0);
+    } else if (taskView === "upcoming") {
+      setTotalCount(taskCounts?.upcoming || 0);
+    } else if (taskView === "overdue") {
+      setTotalCount(taskCounts?.overdue || 0);
+    }
+  }, [taskView, taskCounts])
 
   // Initial load when component mounts or key dependencies change
   useEffect(() => {
     setCurrentPage(1);
+    setDisplayedTasks([]);
+    setHasMoreData(true);
+    totalItemsLoadedRef.current = 0;
     loadTasksFromApi(1, false);
     loadTaskCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskView, dashboardType, dashboardStaffFilter, departmentFilter])
 
   // Load when search changes
@@ -190,29 +273,46 @@ export default function TaskNavigationTabs({
     if (currentPage === 1) {
       loadTasksFromApi(1, false)
     }
-  }, [searchQuery])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, currentPage])
 
-  // Infinite scroll handler
-  const handleScroll = useCallback((e) => {
-    const container = e.target;
-    const scrollTop = container.scrollTop;
-    const scrollHeight = container.scrollHeight;
-    const clientHeight = container.clientHeight;
-    
-    // Load more when scrolled to 80% of the container
-    if (scrollTop + clientHeight >= scrollHeight * 0.8 && hasMoreData && !isLoadingMore) {
+  // Infinite scroll handler - simple like checklist/maintenance
+  const handleScroll = useCallback(() => {
+    if (!hasMoreData || isLoadingMore || loadingDashboardTasks) return;
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    // Check if near bottom (within 200px of bottom)
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const isNearBottom = distanceFromBottom < 200;
+
+    if (isNearBottom) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
       loadTasksFromApi(nextPage, true);
     }
-  }, [hasMoreData, isLoadingMore, currentPage, loadTasksFromApi])
+  }, [hasMoreData, isLoadingMore, loadingDashboardTasks, currentPage, loadTasksFromApi])
+
+  // Attach scroll listener - simple approach like checklist/maintenance
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [handleScroll])
 
   // Reset local staff filter when dashboardStaffFilter changes
   useEffect(() => {
     if (dashboardStaffFilter !== "all") {
       setFilterStaff("all")
     }
-  }, [dashboardStaffFilter])
+  }, [dashboardStaffFilter, setFilterStaff])
 
   // Render table headers based on task view
   const renderTableHeaders = () => {
@@ -231,6 +331,11 @@ export default function TaskNavigationTabs({
       { key: 'taskStartDate', label: 'Task Start Date' },
       { key: 'frequency', label: 'Frequency' }
     );
+
+    // Add DOER2 column for user role
+    if (userRole && userRole.toLowerCase() === 'user') {
+      baseHeaders.push({ key: 'doerName2', label: 'Doer Name 2' });
+    }
 
     // Add Status column for Recent tasks
     if (taskView === "recent") {
@@ -267,9 +372,7 @@ export default function TaskNavigationTabs({
           onClick={() => setTaskView("recent")}
         >
           {dashboardType === "delegation" ? "Today Tasks" : "Today's Tasks"}
-          {/* <span className="absolute top-1 right-2 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-            {taskCounts.recent}
-          </span> */}
+        
         </button>
         <button
           className={`py-3 text-center font-medium transition-colors relative ${taskView === "upcoming" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -277,9 +380,7 @@ export default function TaskNavigationTabs({
           onClick={() => setTaskView("upcoming")}
         >
           {dashboardType === "delegation" ? "Future Tasks" : "Upcoming Tasks"}
-          {/* <span className="absolute top-1 right-2 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-            {taskCounts.upcoming}
-          </span> */}
+        
         </button>
         <button
           className={`py-3 text-center font-medium transition-colors relative ${taskView === "overdue" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -287,9 +388,7 @@ export default function TaskNavigationTabs({
           onClick={() => setTaskView("overdue")}
         >
           Overdue Tasks
-          {/* <span className="absolute top-1 right-2 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-            {taskCounts.overdue}
-          </span> */}
+         
         </button>
       </div>
 
@@ -299,7 +398,15 @@ export default function TaskNavigationTabs({
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-gray-700">
               Total Tasks:
-              <span className="ml-2 text-blue-600 font-bold">{totalCount}</span>
+              <span className="ml-2 text-blue-600 font-bold">
+                {taskView === "recent" 
+                  ? (taskCounts?.recent || 0)
+                  : taskView === "upcoming"
+                  ? (taskCounts?.upcoming || 0)
+                  : taskView === "overdue"
+                  ? (taskCounts?.overdue || 0)
+                  : 0}
+              </span>
             </span>
             <div className="text-xs text-gray-500">
               Showing {displayedTasks.length} of {totalCount} tasks
@@ -321,9 +428,9 @@ export default function TaskNavigationTabs({
           </div>
         ) : (
           <div
+            ref={scrollContainerRef}
             className="task-table-container overflow-x-auto"
-            style={{ maxHeight: "400px", overflowY: "auto" }}
-            onScroll={handleScroll}
+            style={{ maxHeight: "400px", overflowY: "auto", position: "relative" }}
           >
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 sticky top-0 z-10">
@@ -344,7 +451,7 @@ export default function TaskNavigationTabs({
                   const sequenceNumber = index + 1;
 
                   return (
-                    <tr key={`${task.id}-${task.taskStartDate}`} className="hover:bg-gray-50">
+                    <tr key={`${task.id}-${task.taskStartDate}-${sequenceNumber}`} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                         {sequenceNumber}
                       </td>
@@ -376,6 +483,24 @@ export default function TaskNavigationTabs({
                       {taskView === "upcoming" && (
                         <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                           {task.remarks || "—"}
+                        </td>
+                      )}
+
+                      {/* DOER2 select box - only for user role */}
+                      {userRole && userRole.toLowerCase() === 'user' && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <select
+                            value={doerName2Selections[task.id] || task.doerName2 || ""}
+                            onChange={(e) => setDoerName2Selections(prev => ({ ...prev, [task.id]: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-gray-500"
+                          >
+                            <option value="">Select...</option>
+                            {DOER2_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                       )}
                     </tr>

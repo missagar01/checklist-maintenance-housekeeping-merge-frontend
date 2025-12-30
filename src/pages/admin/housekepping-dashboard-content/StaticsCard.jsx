@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { ListTodo, CheckCircle2, Clock, AlertTriangle, BarChart3, XCircle } from "lucide-react";
-import { dashboardAPI } from '../../../components/api/dashboardCount.js';
+import { fetchHousekeepingDashboardSummary, fetchHousekeepingDepartments } from '../../../redux/slice/housekeepingSlice.js';
 
 export default function StatisticsCards({
   dashboardType = "default",
@@ -8,36 +9,32 @@ export default function StatisticsCards({
   selectedDepartment = "all",
   onDepartmentChange = () => {}
 }) {
-  const [stats, setStats] = useState({
-    total: 0,
-    completed: 0,
-    pending: 0,
-    upcoming: 0,
-    overdue: 0,
-    progress_percent: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [departments, setDepartments] = useState([]);
+  const dispatch = useDispatch();
+  const { dashboardSummary: stats, dashboardDepartments: departments, loadingDashboard, error } = useSelector((state) => state.housekeeping);
   const [departmentsError, setDepartmentsError] = useState(null);
+  const loading = loadingDashboard;
 
   const fetchStats = useCallback(async () => {
     try {
-      setLoading(true);
-      const departmentParam = selectedDepartment && selectedDepartment !== "all" ? selectedDepartment : undefined;
-      const data = await dashboardAPI.getSummary({
+      // Backend automatically filters by user_access from JWT token for user role
+      // For admin, pass department filter if selected
+      const role = localStorage.getItem("role") || ""
+      let departmentParam = undefined
+      
+      if (role.toLowerCase() !== "user" && selectedDepartment && selectedDepartment !== "all") {
+        // For admin, use selected department filter
+        departmentParam = selectedDepartment
+      }
+      // For user role, backend handles filtering from token - no need to pass department
+      
+      await dispatch(fetchHousekeepingDashboardSummary({
         department: departmentParam
-      });
-      setStats(data);
-      setError(null);
+      })).unwrap();
     }
     catch (err) {
-      setError('Failed to fetch statistics');
-      console.error('API Error:', err);
-    } finally {
-      setLoading(false);
+      // Error handled by Redux
     }
-  }, [selectedDepartment, dashboardType, dateRange]);
+  }, [selectedDepartment, dashboardType, dateRange, dispatch]);
 
   useEffect(() => {
     fetchStats();
@@ -47,20 +44,14 @@ export default function StatisticsCards({
     const fetchDepartments = async () => {
       try {
         setDepartmentsError(null);
-        const data = await dashboardAPI.getDepartments();
-        const sortedDepartments = Array.isArray(data)
-          ? [...data].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'accent' }))
-          : [];
-        setDepartments(sortedDepartments);
+        await dispatch(fetchHousekeepingDepartments()).unwrap();
       } catch (err) {
-        console.error('Departments API Error:', err);
-        setDepartments([]);
         setDepartmentsError('Failed to load departments');
       }
     };
 
     fetchDepartments();
-  }, []);
+  }, [dispatch]);
 
   if (loading) {
     return (
@@ -202,21 +193,24 @@ export default function StatisticsCards({
                 id="department-select"
                 value={selectedDepartment || "all"}
                 onChange={(event) => onDepartmentChange(event.target.value)}
-                disabled={!departments.length}
+                disabled={!departments || departments.length === 0}
                 className="h-11 w-full rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 px-4 pr-10 text-sm font-medium text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100"
               >
-                {departments.length === 0 ? (
+                {!departments || departments.length === 0 ? (
                   <option value="all">
                     {departmentsError ? 'Unable to load departments' : 'Loading departments...'}
                   </option>
                 ) : (
                   <>
                     <option value="all">All Departments</option>
-                    {departments.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
+                    {departments.map((dept) => {
+                      const deptName = typeof dept === 'string' ? dept : (dept.name || dept.department || dept);
+                      return (
+                        <option key={deptName} value={deptName}>
+                          {deptName}
+                        </option>
+                      );
+                    })}
                   </>
                 )}
               </select>

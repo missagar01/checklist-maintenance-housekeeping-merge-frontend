@@ -1,11 +1,18 @@
 "use client"
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { CheckCircle2, Upload, X, Search, History, ArrowLeft } from "lucide-react"
-import AdminLayout from "../../components/layout/AdminLayout.jsx"
-import { getPendingTasks, getHistoryTasks, submitTasks, confirmTask } from "../../components/api/delegationApi.js"
-import { API_BASE_URL } from "../../components/api/axios.js"
+import AdminLayout from "../../components/layout/AdminLayout"
+import { useDispatch, useSelector } from "react-redux"
+import {
+  fetchHousekeepingPendingTasks,
+  fetchHousekeepingHistoryTasks,
+  confirmHousekeepingTask,
+  submitHousekeepingTasks,
+  clearPendingTasks,
+  clearHistoryTasks,
+} from "../../redux/slice/housekeepingSlice"
+import { API_BASE_URL } from "../../components/api/axios"
 
-// Configuration object
 const CONFIG = {
   PAGE_CONFIG: {
     title: "HouseKeeping Tasks",
@@ -20,13 +27,24 @@ const DOER2_OPTIONS = [
   "Tikeshware Chakradhari(KH)",
   "Makhan Lal",
 ]
+const PAGE_SIZE = 100
 
+function HousekeepingTasksPage() {
+  const dispatch = useDispatch()
+  const housekeepingState = useSelector((state) => state.housekeeping)
+  
+  const {
+    pendingTasks,
+    historyTasks,
+    loading,
+    pendingPage,
+    historyPage,
+    pendingHasMore,
+    historyHasMore,
+    submittingTasks,
+  } = housekeepingState
 
-function HousekeepingDataPage() {
-  const [pendingTasks, setPendingTasks] = useState([])
-  const [historyTasks, setHistoryTasks] = useState([])
   const [selectedItems, setSelectedItems] = useState(new Set())
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [additionalData, setAdditionalData] = useState({})
   const [searchTerm, setSearchTerm] = useState("")
@@ -37,115 +55,199 @@ function HousekeepingDataPage() {
   const [selectedMembers, setSelectedMembers] = useState([])
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
   const [selectedDepartment, setSelectedDepartment] = useState("")
   const [userRole, setUserRole] = useState("")
-  const [userDepartment, setUserDepartment] = useState("")
-  const [confirmingTask, setConfirmingTask] = useState(null)
   const [userConfirmRemarks, setUserConfirmRemarks] = useState({})
   const [submitMessage, setSubmitMessage] = useState({ type: "", text: "" })
   const [doerName2Selections, setDoerName2Selections] = useState({})
+  const [pageLoading, setPageLoading] = useState(false)
+  const [userBulkConfirmIds, setUserBulkConfirmIds] = useState(new Set())
+  const [isBulkConfirming, setIsBulkConfirming] = useState(false)
 
   const tableContainerRef = useRef(null)
+  const pendingSentinelRef = useRef(null)
+  const historySentinelRef = useRef(null)
 
+  const isUser = userRole && userRole.toLowerCase() === 'user'
 
   useEffect(() => {
-  const role = localStorage.getItem("role")
-  const username = localStorage.getItem("user-name")
-
-  if (role) setUserRole(role)
-  if (username) setUserDepartment("") // keep as-is if unused
-}, [])
-
-
-  // Mobile detection
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    const role = localStorage.getItem("role") || ""
+    // Use user_access1 for housekeeping, fallback to user_access
+    const userAccess1 = localStorage.getItem("user_access1") || localStorage.getItem("userAccess1") || ""
+    const userAccessFallback = localStorage.getItem("user_access") || localStorage.getItem("userAccess") || ""
+    const accessDenorm = (userAccess1 || userAccessFallback).trim()
+    setUserRole(role)
+    if (role.toLowerCase() === 'user') {
+      const departments = accessDenorm.split(',').map(d => d.trim()).filter(Boolean)
+      setSelectedDepartment(departments[0] || "")
+    }
   }, [])
 
-  // (auth removed) userRole and userDepartment remain empty strings unless set elsewhere
+  const fetchTasks = useCallback(async ({ page = 1, append = false } = {}) => {
+    const params = {
+      limit: PAGE_SIZE,
+      page,
+      ...(!isUser && selectedDepartment ? { department: selectedDepartment } : {})
+    }
 
-  // Load data
-  const loadData = useCallback(async () => {
-    setLoading(true)
     setError(null)
+    if (!append) {
+      setPageLoading(true)
+    } else {
+      setPageLoading(true)
+    }
+
     try {
-     const filters = {}
-
-if (selectedDepartment) {
-  filters.department = selectedDepartment
-}
-
-if (userRole?.toLowerCase() === "user") {
-  filters.name = localStorage.getItem("user-name")
-}
-
-const data = showHistory
-  ? await getHistoryTasks(filters)
-  : await getPendingTasks(filters)
-
-showHistory ? setHistoryTasks(data) : setPendingTasks(data)
-
-    } catch (err) {
-      console.error('Error loading data:', err)
+      if (showHistory) {
+        await dispatch(fetchHousekeepingHistoryTasks({ page, filters: params })).unwrap()
+      } else {
+        await dispatch(fetchHousekeepingPendingTasks({ page, filters: params })).unwrap()
+      }
+    } catch {
       setError('Failed to load data. Please try again.')
     } finally {
-      setLoading(false)
+      setPageLoading(false)
     }
-  }, [showHistory, selectedDepartment])
+  }, [showHistory, selectedDepartment, isUser, dispatch])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (showHistory) {
+      dispatch(clearHistoryTasks())
+    } else {
+      dispatch(clearPendingTasks())
+    }
+    fetchTasks({ page: 1, append: false })
+  }, [showHistory, fetchTasks, dispatch])
+
+  useEffect(() => {
+    if (showHistory) return
+    const target = pendingSentinelRef.current
+    if (!target || !pendingHasMore || loading || pageLoading) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        fetchTasks({ page: pendingPage + 1, append: true })
+      }
+    }, { threshold: 1 })
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [showHistory, pendingHasMore, loading, pageLoading, pendingPage, fetchTasks])
+
+  useEffect(() => {
+    if (!showHistory) return
+    const target = historySentinelRef.current
+    if (!target || !historyHasMore || loading || pageLoading) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        fetchTasks({ page: historyPage + 1, append: true })
+      }
+    }, { threshold: 1 })
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [showHistory, historyHasMore, loading, pageLoading, historyPage, fetchTasks])
 
   const resetFilters = useCallback(() => {
     setSearchTerm("")
     setSelectedMembers([])
-    setSelectedDepartment("")
+    if (!isUser) {
+      setSelectedDepartment("")
+    }
     setStartDate("")
     setEndDate("")
+    dispatch(clearPendingTasks())
+    dispatch(clearHistoryTasks())
+  }, [isUser, dispatch])
+
+  const handleUserSelectToggle = useCallback((taskId, isChecked) => {
+    setUserBulkConfirmIds(prev => {
+      const next = new Set(prev)
+      if (isChecked) {
+        next.add(taskId)
+      } else {
+        next.delete(taskId)
+      }
+      return next
+    })
   }, [])
 
-  // NEW FUNCTION FOR USER CONFIRMATION
-  const handleConfirmTask = async (taskId) => {
-    setConfirmingTask(taskId)
-    try {
-      const remarkToSend = (userConfirmRemarks[taskId] || "").trim()
-      if (!remarkToSend) {
-        setConfirmingTask(null)
-        return
-      }
-      const imageToSend = userUploadedImages[taskId]?.file || null
-      const doerName2ToSend = doerName2Selections[taskId] || ""
-      await confirmTask(taskId, remarkToSend, imageToSend, doerName2ToSend)
-      setSuccessMessage("Task confirmed successfully!")
-      setUserConfirmRemarks(prev => {
-        const next = { ...prev }
-        delete next[taskId]
-        return next
-      })
-      setUserUploadedImages(prev => {
-        const next = { ...prev }
-        const existing = next[taskId]
-        if (existing?.previewUrl) {
-          URL.revokeObjectURL(existing.previewUrl)
-        }
-        delete next[taskId]
-        return next
-      })
-      // Reload data to reflect changes
-      await loadData()
-    } catch (error) {
-      console.error('Confirmation error:', error)
-      alert('Confirmation failed: ' + error.message)
-    } finally {
-      setConfirmingTask(null)
+  const handleBulkConfirm = useCallback(async () => {
+    const ids = Array.from(userBulkConfirmIds)
+    if (ids.length === 0) {
+      setSubmitMessage({ type: "error", text: "Please select at least one task to confirm." })
+      return
     }
-  }
+
+    const tasksWithoutRemarks = ids.filter(id => {
+      const remark = (userConfirmRemarks[id] || "").trim()
+      return !remark
+    })
+
+    if (tasksWithoutRemarks.length > 0) {
+      setSubmitMessage({ type: "error", text: `Please add remarks for all selected tasks. ${tasksWithoutRemarks.length} task(s) missing remarks.` })
+      return
+    }
+
+    setIsBulkConfirming(true)
+    setSubmitMessage({ type: "info", text: "Confirming tasks, please wait..." })
+    
+    try {
+      const confirmPromises = ids.map(async (taskId) => {
+        const remarkToSend = (userConfirmRemarks[taskId] || "").trim()
+        const imageToSend = userUploadedImages[taskId]?.file || null
+        const doerName2ToSend = doerName2Selections[taskId] || ""
+        return dispatch(confirmHousekeepingTask({
+          taskId,
+          remark: remarkToSend,
+          imageFile: imageToSend,
+          doerName2: doerName2ToSend
+        })).unwrap()
+      })
+
+      const results = await Promise.allSettled(confirmPromises)
+      const successful = results.filter(r => r.status === "fulfilled").length
+      const failed = results.filter(r => r.status === "rejected").length
+
+      if (failed > 0) {
+        setSubmitMessage({ type: "error", text: `${successful} confirmed, ${failed} failed.` })
+      } else {
+        setSuccessMessage(`Successfully confirmed ${successful} tasks!`)
+        setSubmitMessage({ type: "", text: "" })
+      }
+
+      setUserBulkConfirmIds(new Set())
+      ids.forEach(id => {
+        setUserConfirmRemarks(prev => {
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
+        setUserUploadedImages(prev => {
+          const next = { ...prev }
+          const existing = next[id]
+          if (existing?.previewUrl) {
+            URL.revokeObjectURL(existing.previewUrl)
+          }
+          delete next[id]
+          return next
+        })
+        setDoerName2Selections(prev => {
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
+      })
+
+      dispatch(clearPendingTasks())
+      await fetchTasks({ page: 1, append: false })
+    } catch (error) {
+      setSubmitMessage({ type: "error", text: 'Bulk confirmation failed: ' + error.message })
+    } finally {
+      setIsBulkConfirming(false)
+    }
+  }, [userBulkConfirmIds, userConfirmRemarks, userUploadedImages, doerName2Selections, dispatch, fetchTasks])
 
   const renderDateTimeRaw = useCallback((value) => {
     if (!value) return "—"
@@ -177,44 +279,62 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
   }, [])
 
   const filteredPendingTasks = useMemo(() => {
+    const shouldFilterByDepartment = !isUser && selectedDepartment
     const normalizedSelectedDept = selectedDepartment?.toLowerCase().trim() || "";
+    const normalizedSearchTerm = searchTerm?.toLowerCase().trim() || "";
 
-    return pendingTasks.filter(task => {
-      const matchesSearch = searchTerm
-        ? Object.values(task).some(value =>
-          value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-        )
+    const filtered = pendingTasks.filter(task => {
+      const matchesSearch = normalizedSearchTerm
+        ? (
+            (task.department || "").toLowerCase().includes(normalizedSearchTerm) ||
+            (task.task_description || "").toLowerCase().includes(normalizedSearchTerm)
+          )
         : true
 
       const matchesMember = selectedMembers.length > 0
         ? selectedMembers.includes(task.name)
         : true
 
-      const matchesDepartment = selectedDepartment
+      const matchesDepartment = shouldFilterByDepartment
         ? (task.department || "").toLowerCase().trim() === normalizedSelectedDept
         : true
 
       return matchesSearch && matchesMember && matchesDepartment
     })
-  }, [pendingTasks, searchTerm, selectedMembers, selectedDepartment])
+
+    return filtered.sort((a, b) => {
+      const aConfirmed = (a.attachment || "").toLowerCase().trim() === "confirmed"
+      const bConfirmed = (b.attachment || "").toLowerCase().trim() === "confirmed"
+      
+      if (aConfirmed !== bConfirmed) {
+        return aConfirmed ? 1 : -1
+      }
+      
+      const aDate = a.task_start_date ? new Date(a.task_start_date).getTime() : 0
+      const bDate = b.task_start_date ? new Date(b.task_start_date).getTime() : 0
+      return bDate - aDate
+    })
+  }, [pendingTasks, searchTerm, selectedMembers, selectedDepartment, isUser])
 
   const filteredHistoryData = useMemo(() => {
+    const shouldFilterByDepartment = !isUser && selectedDepartment
     const normalizedSelectedDept = selectedDepartment?.toLowerCase().trim() || "";
+    const normalizedSearchTerm = searchTerm?.toLowerCase().trim() || "";
 
     return historyTasks
       .filter(item => {
-        const matchesSearch = searchTerm
-          ? Object.entries(item).some(([key, value]) => {
-            if (['image', 'admin_done'].includes(key)) return false
-            return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-          })
+        const matchesSearch = normalizedSearchTerm
+          ? (
+              (item.department || "").toLowerCase().includes(normalizedSearchTerm) ||
+              (item.task_description || "").toLowerCase().includes(normalizedSearchTerm)
+            )
           : true
 
         const matchesMember = selectedMembers.length > 0
           ? selectedMembers.includes(item.name)
           : true
 
-        const matchesDepartment = selectedDepartment
+        const matchesDepartment = shouldFilterByDepartment
           ? (item.department || "").toLowerCase().trim() === normalizedSelectedDept
           : true
 
@@ -239,7 +359,7 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
         return matchesSearch && matchesMember && matchesDepartment && matchesDateRange
       })
       
-  }, [historyTasks, searchTerm, selectedMembers, selectedDepartment, startDate, endDate])
+  }, [historyTasks, searchTerm, selectedMembers, selectedDepartment, startDate, endDate, isUser])
 
   const getDepartmentsList = useMemo(() => {
     const allDepartments = [...new Set([...pendingTasks, ...historyTasks]
@@ -303,9 +423,8 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
     }
 
     return buildWithOrigin(raw)
-  }, [API_BASE_URL, apiOrigin, apiBaseWithoutApi])
+  }, [apiOrigin, apiBaseWithoutApi])
 
-  // Selection handlers (for admin only)
   const handleSelectItem = useCallback((taskId, isChecked) => {
     setSelectedItems(prev => {
       const newSelected = new Set(prev)
@@ -330,7 +449,6 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
 
   const handleCheckboxClick = useCallback((e, taskId) => {
     const task = pendingTasks.find(t => t.task_id === taskId)
-    // Only allow selection if task is confirmed by HOD
     if (task && task.attachment === "confirmed") {
       handleSelectItem(taskId, e.target.checked)
     }
@@ -339,7 +457,6 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
   const handleSelectAllItems = useCallback((e) => {
     const checked = e.target.checked
     if (checked) {
-      // Only select tasks where attachment is "confirmed"
       const allConfirmedIds = filteredPendingTasks
         .filter(task => task.attachment === "confirmed")
         .map(task => task.task_id)
@@ -377,20 +494,23 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
     })
   }, [])
 
-  const handleMemberSelection = useCallback((member) => {
-    setSelectedMembers(prev =>
-      prev.includes(member)
-        ? prev.filter(item => item !== member)
-        : [...prev, member]
-    )
-  }, [])
-
   const toggleHistory = useCallback(() => {
-    setShowHistory(prev => !prev)
-    resetFilters()
-  }, [resetFilters])
+    const newShowHistory = !showHistory
+    setShowHistory(newShowHistory)
+    
+    setSearchTerm("")
+    setSelectedMembers([])
+    setStartDate("")
+    setEndDate("")
+    
+    if (!isUser) {
+      setSelectedDepartment("")
+    }
+    
+    dispatch(clearPendingTasks())
+    dispatch(clearHistoryTasks())
+  }, [showHistory, isUser, dispatch])
 
-  // Admin submit function
   const handleSubmit = async () => {
     const selectedItemsArray = Array.from(selectedItems);
     if (selectedItemsArray.length === 0) {
@@ -399,7 +519,6 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
     }
 
     setSubmitMessage({ type: "info", text: "Submitting, please wait..." })
-    setIsSubmitting(true);
 
     try {
       const selectedData = selectedItemsArray.map(id => {
@@ -410,38 +529,33 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
           task_id: task.task_id,
           status: additionalData[id] || "Yes",
           remark: remarksData[id] || "",
-          attachment: task.attachment, // Use the existing attachment value (including "confirmed")
+          attachment: task.attachment,
           doer_name2: doerName2Selections[id] || task.doer_name2 || "",
           image_url: taskImageUrl || null
         };
       });
 
-      const result = await submitTasks(selectedData);
+      const result = await dispatch(submitHousekeepingTasks(selectedData)).unwrap();
 
       if (result.failed.length > 0) {
-        setSubmitMessage({ type: "error", text: `${result.failed.length} submissions failed. Check console for details.` })
-        console.error('Failed submissions:', result.failed);
+        setSubmitMessage({ type: "error", text: `${result.failed.length} submissions failed.` })
       } else {
         setSuccessMessage(`Successfully submitted ${selectedItemsArray.length} tasks!`);
         setSubmitMessage({ type: "", text: "" })
       }
 
-      await loadData();
+      await fetchTasks({ page: 1, append: false });
       setSelectedItems(new Set());
       setAdditionalData({});
       setRemarksData({});
       setDoerName2Selections({});
 
     } catch (error) {
-      console.error('Submission error:', error);
       setSubmitMessage({ type: "error", text: 'Submission failed: ' + error.message })
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const selectedItemsCount = selectedItems.size
-  const isUser = userRole && userRole.toLowerCase() === 'user'
 
   return (
     <AdminLayout>
@@ -495,17 +609,32 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
               {!showHistory && !isUser && (
                 <button
                   onClick={handleSubmit}
-                  disabled={selectedItemsCount === 0 || isSubmitting}
+                  disabled={selectedItemsCount === 0 || submittingTasks}
                   className="flex-1 sm:flex-none rounded-md gradient-bg py-2 px-3 sm:px-4 text-white hover:from-gray-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base inline-flex items-center justify-center gap-2"
                 >
-                  {isSubmitting && (
+                  {submittingTasks && (
                     <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   )}
-                  {isSubmitting ? "Submitting..." : `Submit (${selectedItemsCount})`}
+                  {submittingTasks ? "Submitting..." : `Submit (${selectedItemsCount})`}
                 </button>
               )}
             </div>
           </div>
+
+          {!showHistory && isUser && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBulkConfirm}
+                disabled={userBulkConfirmIds.size === 0 || isBulkConfirming}
+                className="flex-1 sm:flex-none rounded-md gradient-bg py-2 px-3 sm:px-4 text-white hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base inline-flex items-center justify-center gap-2"
+              >
+                {isBulkConfirming && (
+                  <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                {isBulkConfirming ? "Confirming..." : `Submit (${userBulkConfirmIds.size})`}
+              </button>
+            </div>
+          )}
         </div>
 
         {successMessage && (
@@ -521,7 +650,7 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
         )}
 
         <div className="rounded-lg border border-gray-200 shadow-md bg-white overflow-hidden">
-          {loading ? (
+          {loading || pageLoading ? (
             <div className="text-center py-10">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-500 mb-4"></div>
               <p className="text-gray-600 text-sm sm:text-base">Loading task data...</p>
@@ -529,13 +658,12 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
           ) : error ? (
             <div className="bg-red-50 p-4 rounded-md text-red-800 text-center text-sm sm:text-base">
               {error}{" "}
-              <button className="underline ml-2" onClick={loadData}>
+              <button className="underline ml-2" onClick={() => fetchTasks({ page: 1, append: false })}>
                 Try again
               </button>
             </div>
           ) : showHistory ? (
             <>
-              {/* History Filters */}
               <div className="p-3 sm:p-4 border-b border-gray-100 bg-gray-50">
                 <div className="flex flex-col gap-3 sm:gap-4">
                   {getDepartmentsList.length > 0 && (
@@ -559,18 +687,17 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                     </div>
                   )}
 
-                      {(selectedMembers.length > 0 || selectedDepartment || startDate || endDate || searchTerm) && (
-                        <button
-                          onClick={resetFilters}
-                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-xs sm:text-sm w-full sm:w-auto"
-                        >
-                          Clear All Filters
-                        </button>
-                      )}
+                  {(selectedMembers.length > 0 || selectedDepartment || startDate || endDate || searchTerm) && (
+                    <button
+                      onClick={resetFilters}
+                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-xs sm:text-sm w-full sm:w-auto"
+                    >
+                      Clear All Filters
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* History Table */}
               <div ref={tableContainerRef} className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 300px)' }}>
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0 z-10">
@@ -581,12 +708,12 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                       <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Task ID
                       </th>
-                          <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                            Department
-                          </th>
-                          <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                            Task Description
-                          </th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        Department
+                      </th>
+                      <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
+                        Task Description
+                      </th>
                       <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50 whitespace-nowrap">
                         Task Start Date
                       </th>
@@ -699,11 +826,11 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                     )}
                   </tbody>
                 </table>
+                <div ref={historySentinelRef} className="h-4" />
               </div>
             </>
           ) : (
             <div>
-              {/* Pending Tasks - Different views for User vs Admin */}
               {!showHistory && !isUser && getDepartmentsList.length > 0 && (
                 <div className="p-3 sm:p-4 border-b border-gray-100 bg-gray-50">
                   <div className="flex flex-col-2 sm:flex-row items-start sm:items-end gap-3">
@@ -742,11 +869,24 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
-                      {/* USER VIEW - SIMPLIFIED COLUMNS */}
                       {isUser ? (
                         <>
                           <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 z-30 bg-white">
-                            Action
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500"
+                              checked={filteredPendingTasks.length > 0 && filteredPendingTasks.filter(t => t.attachment !== "confirmed").every(t => userBulkConfirmIds.has(t.task_id))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  const allPendingIds = filteredPendingTasks
+                                    .filter(t => t.attachment !== "confirmed")
+                                    .map(t => t.task_id)
+                                  setUserBulkConfirmIds(new Set(allPendingIds))
+                                } else {
+                                  setUserBulkConfirmIds(new Set())
+                                }
+                              }}
+                            />
                           </th>
                           <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Department
@@ -767,14 +907,13 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                             Doer Name 2
                           </th>
                           <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                            COnfirm By HOD
+                            Confirm By HOD
                           </th>
                           <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Remark
                           </th>
                         </>
                       ) : (
-                        /* ADMIN VIEW - FULL COLUMNS */
                         <>
                           <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap w-16">
                             Seq. No.
@@ -783,10 +922,10 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                             <input
                               type="checkbox"
                               className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500"
-                              checked={filteredPendingTasks.length > 0 && selectedItems.size === filteredPendingTasks.length}
+                              checked={filteredPendingTasks.length > 0 && selectedItems.size === filteredPendingTasks.filter(t => t.attachment === "confirmed").length}
                               onChange={handleSelectAllItems}
                             />
-                          </th>
+                          </th> 
                           <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Task ID
                           </th>
@@ -826,29 +965,19 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                       filteredPendingTasks.map((task, index) => {
                         const isSelected = selectedItems.has(task.task_id)
                         const sequenceNumber = index + 1
-                        const userRemarkTrimmed = (userConfirmRemarks[task.task_id] || "").trim()
                         const taskImageUrl = getTaskImageUrl(task)
                         return (
                           <tr key={task.task_id} className={`${isSelected ? "bg-gray-50" : ""} hover:bg-gray-50`}>
                             {isUser ? (
-                              /* USER VIEW ROW */
                               <>
                                 <td className="px-2 sm:px-3 py-2 sm:py-4 sticky left-0 z-20 bg-white">
-                                  <button
-                                    onClick={() => handleConfirmTask(task.task_id)}
-                                    disabled={confirmingTask === task.task_id || task.attachment === "confirmed" || !userRemarkTrimmed}
-                                    className={`px-3 py-1 rounded-md text-xs sm:text-sm font-medium ${task.attachment === "confirmed"
-                                      ? "bg-gray-100 text-gray-600 cursor-not-allowed"
-                                      : "bg-green-600 text-white hover:bg-green-700"
-                                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                  >
-                                    {confirmingTask === task.task_id
-                                      ? "Confirming..."
-                                      : task.attachment === "confirmed"
-                                        ? "Confirmed"
-                                        : "Confirm"
-                                    }
-                                  </button>
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500"
+                                    checked={userBulkConfirmIds.has(task.task_id)}
+                                    onChange={(e) => handleUserSelectToggle(task.task_id, e.target.checked)}
+                                    disabled={task.attachment === "confirmed"}
+                                  />
                                 </td>
                                 <td className="px-2 sm:px-3 py-2 sm:py-4">
                                   <div className="text-xs sm:text-sm text-gray-900 break-words">{task.department || "—"}</div>
@@ -866,19 +995,19 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                                 <td className="px-2 sm:px-3 py-2 sm:py-4">
                                   <div className="text-xs sm:text-sm text-gray-900 break-words">{task.frequency || "—"}</div>
                                 </td>
-                            <td className="px-2 sm:px-3 py-2 sm:py-4">
-                              <div className="flex items-center gap-2">
-                                {userUploadedImages[task.task_id]?.previewUrl || taskImageUrl ? (
-                                  <img
-                                    src={userUploadedImages[task.task_id]?.previewUrl || taskImageUrl}
-                                    alt="Task attachment"
-                                    crossOrigin="anonymous"
-                                    className="h-24 w-24 object-cover rounded-md border border-gray-200"
-                                  />
-                                ) : (
-                                  <span className="text-xs text-gray-400">No image</span>
-                                )}
-                                <label
+                                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                                  <div className="flex items-center gap-2">
+                                    {userUploadedImages[task.task_id]?.previewUrl || taskImageUrl ? (
+                                      <img
+                                        src={userUploadedImages[task.task_id]?.previewUrl || taskImageUrl}
+                                        alt="Task attachment"
+                                        crossOrigin="anonymous"
+                                        className="h-24 w-24 object-cover rounded-md border border-gray-200"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-gray-400">No image</span>
+                                    )}
+                                    <label
                                       className={`flex items-center gap-1 text-gray-700 ${task.attachment === "confirmed" ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:text-gray-900"}`}
                                     >
                                       <Upload className="h-4 w-4 flex-shrink-0" />
@@ -938,7 +1067,6 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                                 </td>
                               </>
                             ) : (
-                              /* ADMIN VIEW ROW */
                               <>
                                 <td className="px-2 sm:px-3 py-2 sm:py-4 w-16">
                                   <div className="text-xs sm:text-sm font-medium text-gray-900 text-center">
@@ -952,7 +1080,7 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                                       }`}
                                     checked={isSelected}
                                     onChange={(e) => handleCheckboxClick(e, task.task_id)}
-                                    disabled={task.attachment !== "confirmed"} // Disable if not confirmed
+                                    disabled={task.attachment !== "confirmed"}
                                   />
                                 </td>
                                 <td className="px-2 sm:px-3 py-2 sm:py-4">
@@ -1010,9 +1138,14 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                                   </select>
                                 </td>
                                 <td className="px-2 sm:px-3 py-2 sm:py-4 bg-orange-50 min-w-[120px]">
-                                  <div className="text-xs sm:text-sm text-gray-900 break-words" title={task.remark}>
-                                    {task.remark || "—"}
-                                  </div>
+                                  <textarea
+                                    disabled={!isSelected || task.attachment !== "confirmed"}
+                                    value={remarksData[task.task_id] || ""}
+                                    onChange={(e) => setRemarksData(prev => ({ ...prev, [task.task_id]: e.target.value }))}
+                                    className="border border-gray-300 rounded-md px-2 py-1 w-full disabled:bg-gray-100 disabled:cursor-not-allowed text-xs sm:text-sm"
+                                    rows={2}
+                                    placeholder="Enter remarks"
+                                  />
                                 </td>
                                 <td className="px-2 sm:px-3 py-2 sm:py-4 bg-green-50">
                                   {taskImageUrl ? (
@@ -1035,7 +1168,7 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                       })
                     ) : (
                       <tr>
-                        <td colSpan={isUser ? 9 : 12} className="px-4 sm:px-6 py-4 text-center text-gray-500 text-xs sm:text-sm">
+                        <td colSpan={isUser ? 10 : 12} className="px-4 sm:px-6 py-4 text-center text-gray-500 text-xs sm:text-sm">
                           {searchTerm || selectedMembers.length > 0
                             ? "No tasks matching your search"
                             : "No pending tasks found"}
@@ -1044,6 +1177,7 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
                     )}
                   </tbody>
                 </table>
+                <div ref={pendingSentinelRef} className="h-4" />
               </div>
             </div>
           )}
@@ -1053,4 +1187,5 @@ showHistory ? setHistoryTasks(data) : setPendingTasks(data)
   )
 }
 
-export default HousekeepingDataPage
+export default HousekeepingTasksPage
+

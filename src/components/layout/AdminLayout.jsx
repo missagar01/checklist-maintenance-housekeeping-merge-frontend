@@ -20,6 +20,8 @@ import {
   CrossIcon,
   X,
 } from "lucide-react";
+import { clearSessionStorage } from "../../utils/sessionStorage";
+import { logoutApi } from "../../redux/api/loginApi";
 
 export default function AdminLayout({ children, darkMode, toggleDarkMode, onScroll }) {
   const location = useLocation();
@@ -54,11 +56,9 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode, onScro
   }, [navigate]);
 
   // Handle logout
-  const handleLogout = () => {
-    localStorage.removeItem("user-name");
-    localStorage.removeItem("role");
-    localStorage.removeItem("email_id");
-    localStorage.removeItem("token");
+  const handleLogout = async () => {
+    await logoutApi();
+    clearSessionStorage();
     window.location.href = "/login";
   };
 
@@ -162,12 +162,6 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode, onScro
     const cleanPageAccess = pageAccess.replace(/"/g, '');
     const accessiblePages = cleanPageAccess.split(',').map(page => page.trim());
 
-    console.log("DEBUG - User Role:", userRole);
-    console.log("DEBUG - Page Access from localStorage:", pageAccess);
-    console.log("DEBUG - Clean Page Access:", cleanPageAccess);
-    console.log("DEBUG - Accessible Pages Array:", accessiblePages);
-    console.log("DEBUG - Is Super Admin:", isSuperAdmin);
-
     // Define routes with pageKey properties
     const allRoutes = [
       {
@@ -265,7 +259,6 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode, onScro
 
     });
 
-    console.log("DEBUG - Final filtered routes:", filteredRoutes.map(r => r.label));
     return filteredRoutes;
   };
 

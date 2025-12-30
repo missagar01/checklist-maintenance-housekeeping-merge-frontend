@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
+import { clearSessionStorage } from "../../utils/sessionStorage"
+import { logoutApi } from "../../redux/api/loginApi"
 
 const UserLayout = ({ children }) => {
   const navigate = useNavigate()
@@ -25,11 +27,10 @@ const UserLayout = ({ children }) => {
   }, [navigate])
 
   // Logout handler
-  const handleLogout = () => {
-   localStorage.removeItem("user-name");
-
-     localStorage.removeItem('role')
-    navigate('/login')
+  const handleLogout = async () => {
+    await logoutApi()
+    clearSessionStorage()
+    window.location.href = "/login"
   }
 
   const routes = isAdmin 
@@ -129,6 +130,7 @@ const UserLayout = ({ children }) => {
       ></div>
 
       {/* Mobile sidebar */}
+      
       <div
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-950 transform ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-200 ease-in-out md:hidden`}
       >

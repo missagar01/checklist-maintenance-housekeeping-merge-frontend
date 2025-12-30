@@ -1,12 +1,9 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, X, AlertTriangle } from "lucide-react";
 import TaskRow, { TaskTableHeader, TaskTableEmpty } from "./TaskRow";
 import TaskFilterBar from "./TaskFilterBar";
 import TaskDrawer from "./TaskDrawer";
-import { filterTasks, sortByDate } from "../../utils/taskNormalizer";
-
-// Page size options
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 1000];
+import { filterTasks, sortByDate, sortHousekeepingTasks } from "../../utils/taskNormalizer";
 
 /**
  * UnifiedTaskTable - Main unified table component
@@ -28,7 +25,6 @@ export default function UnifiedTaskTable({
     onUpdateTask,
     onBulkSubmit,
     userRole = "admin",
-    username = "",
     onLoadMore,  // Callback for scroll-based loading
     hasMore = false,  // Whether more data is available
 }) {
@@ -51,77 +47,101 @@ export default function UnifiedTaskTable({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFetchingMore, setIsFetchingMore] = useState(false);
 
-    // Pagination state
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(50);
-
     // Inline editing state - like maintenance page
     const [rowData, setRowData] = useState({});  // { taskId: { status, soundStatus, temperature, remarks } }
     const [uploadedImages, setUploadedImages] = useState({});  // { taskId: { file, previewUrl } }
 
     const tableContainerRef = useRef(null);
 
-    // Handle scroll for infinite loading (like SalesDataPage)
+    // Handle scroll for infinite loading - improved detection
     const handleScroll = useCallback(() => {
-        if (!tableContainerRef.current || loading || isFetchingMore || !hasMore) return;
+        if (loading || isFetchingMore || !hasMore || !onLoadMore) return;
 
-        const { scrollTop, scrollHeight, clientHeight } = tableContainerRef.current;
-        const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100;
+        let isNearBottom = false;
 
-        if (isNearBottom && onLoadMore) {
+        // Check table container scroll first (primary method)
+        if (tableContainerRef.current) {
+            const container = tableContainerRef.current;
+            const containerScrollTop = container.scrollTop;
+            const containerScrollHeight = container.scrollHeight;
+            const containerClientHeight = container.clientHeight;
+            
+            // Check if near bottom of container (within 300px)
+            if (containerScrollTop + containerClientHeight >= containerScrollHeight - 300) {
+                isNearBottom = true;
+            }
+        }
+
+        // Also check window scroll as fallback (for mobile)
+        if (!isNearBottom) {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            
+            // Check if near bottom of window (within 400px)
+            if (scrollTop + windowHeight >= documentHeight - 400) {
+                isNearBottom = true;
+            }
+        }
+
+        if (isNearBottom) {
             setIsFetchingMore(true);
             onLoadMore();
-            // Reset after a delay
-            setTimeout(() => setIsFetchingMore(false), 1000);
+            // Reset after a delay to prevent multiple rapid calls
+            setTimeout(() => setIsFetchingMore(false), 2000);
         }
     }, [loading, isFetchingMore, hasMore, onLoadMore]);
 
-    // Add scroll event listener
+    // Add scroll event listeners to both window and container
     useEffect(() => {
-        const tableElement = tableContainerRef.current;
-        if (tableElement) {
-            tableElement.addEventListener('scroll', handleScroll);
-            return () => tableElement.removeEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        
+        const container = tableContainerRef.current;
+        if (container) {
+            container.addEventListener('scroll', handleScroll, { passive: true });
         }
+        
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            if (container) {
+                container.removeEventListener('scroll', handleScroll);
+            }
+        };
     }, [handleScroll]);
 
     // Filter and sort tasks
     const filteredTasks = useMemo(() => {
         const filtered = filterTasks(tasks, filters);
+        // If showing housekeeping only, use special sorting (confirmed first)
+        if (filters.sourceSystem === 'housekeeping') {
+            return sortHousekeepingTasks(filtered);
+        }
         return sortByDate(filtered, true);
     }, [tasks, filters]);
 
-    // Pagination calculations
-    const totalPages = Math.ceil(filteredTasks.length / pageSize);
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedTasks = useMemo(() => {
-        return filteredTasks.slice(startIndex, endIndex);
-    }, [filteredTasks, startIndex, endIndex]);
+    // Check if showing only housekeeping tasks
+    const isHousekeepingOnly = useMemo(() => {
+        if (filters.sourceSystem === 'housekeeping') {
+            return true;
+        }
+        // If no source filter and all tasks are housekeeping
+        if (!filters.sourceSystem && filteredTasks.length > 0) {
+            return filteredTasks.every(task => task.sourceSystem === 'housekeeping');
+        }
+        return false;
+    }, [filters.sourceSystem, filteredTasks]);
 
-    // Reset to page 1 when filters change
-    useMemo(() => {
-        setCurrentPage(1);
-    }, [filters]);
+    // Use all filtered tasks for infinite scroll (no client-side pagination)
+    const displayTasks = filteredTasks;
 
-    // Check if all items on current page are selected
-    const isAllSelected = paginatedTasks.length > 0 && paginatedTasks.every(t => selectedItems.has(t.id));
-    const isIndeterminate = paginatedTasks.some(t => selectedItems.has(t.id)) && !isAllSelected;
+    // Check if all visible items are selected
+    const isAllSelected = displayTasks.length > 0 && displayTasks.every(t => selectedItems.has(t.id));
+    const isIndeterminate = displayTasks.some(t => selectedItems.has(t.id)) && !isAllSelected;
 
     // Has active filters
     const hasFilters = useMemo(() => {
         return Object.values(filters).some(v => v);
     }, [filters]);
-
-    // Pagination handlers
-    const goToPage = (page) => {
-        setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-    };
-
-    const handlePageSizeChange = (newSize) => {
-        setPageSize(newSize);
-        setCurrentPage(1);  // Reset to first page
-    };
 
     // Handlers
     const handleSelectItem = useCallback((id, isChecked) => {
@@ -152,23 +172,23 @@ export default function UnifiedTaskTable({
 
     const handleSelectAll = useCallback((e) => {
         if (e.target.checked) {
-            // Select all on current page
-            const pageIds = paginatedTasks.map(task => task.id);
+            // Select all visible tasks
+            const allIds = displayTasks.map(task => task.id);
             setSelectedItems(prev => {
                 const newSet = new Set(prev);
-                pageIds.forEach(id => newSet.add(id));
+                allIds.forEach(id => newSet.add(id));
                 return newSet;
             });
         } else {
-            // Deselect all on current page
-            const pageIds = new Set(paginatedTasks.map(task => task.id));
+            // Deselect all visible tasks
+            const allIds = new Set(displayTasks.map(task => task.id));
             setSelectedItems(prev => {
                 const newSet = new Set(prev);
-                pageIds.forEach(id => newSet.delete(id));
+                allIds.forEach(id => newSet.delete(id));
                 return newSet;
             });
             // Clean up row data for deselected items
-            pageIds.forEach(id => {
+            allIds.forEach(id => {
                 setRowData(prevData => {
                     const newData = { ...prevData };
                     delete newData[id];
@@ -179,7 +199,7 @@ export default function UnifiedTaskTable({
                 }
             });
         }
-    }, [filteredTasks, uploadedImages]);
+    }, [displayTasks, uploadedImages]);
 
     // Handle inline row data changes
     const handleRowDataChange = useCallback((taskId, field, value) => {
@@ -258,8 +278,8 @@ export default function UnifiedTaskTable({
                     if (imageData?.file) {
                         try {
                             imageBase64 = await fileToBase64(imageData.file);
-                        } catch (error) {
-                            console.error("Error converting image to base64:", error);
+                        } catch {
+                            // Error converting image
                         }
                     }
 
@@ -270,6 +290,7 @@ export default function UnifiedTaskTable({
                         soundStatus: taskRowData.soundStatus || "",
                         temperature: taskRowData.temperature || "",
                         remarks: taskRowData.remarks || "",
+                        doerName2: taskRowData.doerName2 || "",  // Add doerName2 for housekeeping
                         image: imageBase64,
                         originalData: task?.originalData,
                     };
@@ -312,26 +333,26 @@ export default function UnifiedTaskTable({
 
             {/* Success Message */}
             {successMessage && (
-                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md flex items-center justify-between">
-                    <div className="flex items-center">
-                        <CheckCircle2 className="h-5 w-5 mr-2 text-green-500" />
-                        <span className="font-medium">{successMessage}</span>
+                <div className="bg-green-50 border border-green-200 text-green-700 px-2 sm:px-4 py-2 sm:py-3 rounded-md flex items-center justify-between">
+                    <div className="flex items-center flex-1 min-w-0">
+                        <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2 text-green-500 flex-shrink-0" />
+                        <span className="font-medium text-xs sm:text-sm truncate">{successMessage}</span>
                     </div>
-                    <button onClick={() => setSuccessMessage("")}>
-                        <X className="h-5 w-5 text-green-500 hover:text-green-700" />
+                    <button onClick={() => setSuccessMessage("")} className="ml-2 flex-shrink-0">
+                        <X className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 hover:text-green-700" />
                     </button>
                 </div>
             )}
 
             {/* Error Message */}
             {errorMessage && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-center justify-between">
-                    <div className="flex items-center">
-                        <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
-                        <span className="font-medium">{errorMessage}</span>
+                <div className="bg-red-50 border border-red-200 text-red-700 px-2 sm:px-4 py-2 sm:py-3 rounded-md flex items-center justify-between">
+                    <div className="flex items-center flex-1 min-w-0">
+                        <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2 text-red-500 flex-shrink-0" />
+                        <span className="font-medium text-xs sm:text-sm truncate">{errorMessage}</span>
                     </div>
-                    <button onClick={() => setErrorMessage("")}>
-                        <X className="h-5 w-5 text-red-500 hover:text-red-700" />
+                    <button onClick={() => setErrorMessage("")} className="ml-2 flex-shrink-0">
+                        <X className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 hover:text-red-700" />
                     </button>
                 </div>
             )}
@@ -339,137 +360,108 @@ export default function UnifiedTaskTable({
             {/* Table Card */}
             <div className="rounded-lg border border-blue-200 shadow-md bg-white overflow-hidden">
                 {/* Table Header */}
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-blue-100 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div>
-                        <h2 className="text-blue-700 font-medium text-sm sm:text-base">
-                            📋 All Tasks (Checklist + Maintenance + Housekeeping)
-                        </h2>
-                        <p className="text-blue-600 text-xs sm:text-sm">
-                            Showing {startIndex + 1}-{Math.min(endIndex, filteredTasks.length)} of {filteredTasks.length} tasks
-                            {filteredTasks.length !== tasks.length && ` (${tasks.length} total)`}
-                        </p>
-                    </div>
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-blue-100 px-2 sm:px-4 py-2 sm:py-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-blue-700 font-medium text-xs sm:text-sm md:text-base truncate">
+                                📋 All Tasks (Checklist + Maintenance + Housekeeping)
+                            </h2>
+                            <p className="text-blue-600 text-xs mt-1">
+                                Showing {displayTasks.length} of {displayTasks.length} tasks
+                                {displayTasks.length !== tasks.length && ` (${tasks.length} total)`}
+                                {hasMore && <span className="text-blue-500"> • Loading more...</span>}
+                            </p>
+                        </div>
 
-                    {/* Only show Update button for pending tasks (not history) */}
-                    {filters.status !== "Completed" && (
-                        <button
-                            onClick={handleBulkSubmit}
-                            disabled={selectedItems.size === 0 || isSubmitting}
-                            className="rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium whitespace-nowrap"
-                        >
-                            {isSubmitting ? "⏳ Processing..." : `✅ Update Selected (${selectedItems.size})`}
-                        </button>
-                    )}
+                        {/* Only show Update button for pending tasks (not history) */}
+                        {filters.status !== "Completed" && (
+                            <button
+                                onClick={handleBulkSubmit}
+                                disabled={selectedItems.size === 0 || isSubmitting}
+                                className="w-full sm:w-auto rounded-md bg-green-600 py-1.5 sm:py-2 px-3 sm:px-4 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium whitespace-nowrap"
+                            >
+                                {isSubmitting ? "⏳ Processing..." : `✅ Update Selected (${selectedItems.size})`}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Table Container */}
                 <div
                     ref={tableContainerRef}
-                    className="overflow-x-auto"
+                    className="overflow-x-auto overflow-y-auto"
                     style={{ maxHeight: 'calc(100vh - 400px)' }}
                 >
-                    {loading ? (
-                        <div className="text-center py-12">
-                            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-                            <p className="text-blue-600 text-sm">Loading tasks from all sources...</p>
+                    {loading && displayTasks.length === 0 ? (
+                        <div className="text-center py-8 sm:py-12">
+                            <div className="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+                            <p className="text-blue-600 text-xs sm:text-sm">Loading tasks from all sources...</p>
                         </div>
                     ) : (
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <TaskTableHeader
-                                onSelectAll={handleSelectAll}
-                                isAllSelected={isAllSelected}
-                                isIndeterminate={isIndeterminate}
-                                isHistoryMode={filters.status === "Completed"}
-                            />
-                            <tbody className="bg-white divide-y divide-gray-100">
-                                {paginatedTasks.length > 0 ? (
-                                    paginatedTasks.map((task) => (
-                                        <TaskRow
-                                            key={`${task.sourceSystem}-${task.id}`}
-                                            task={task}
-                                            isSelected={selectedItems.has(task.id)}
-                                            onSelect={handleSelectItem}
-                                            onView={handleViewTask}
-                                            rowData={rowData[task.id] || {}}
-                                            onRowDataChange={handleRowDataChange}
-                                            uploadedImage={uploadedImages[task.id]}
-                                            onImageUpload={handleImageUpload}
-                                            isHistoryMode={filters.status === "Completed"}
-                                        />
-                                    ))
-                                ) : (
-                                    <TaskTableEmpty hasFilters={hasFilters} />
-                                )}
-                            </tbody>
-                        </table>
+                        <>
+                            <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '800px' }}>
+                                <TaskTableHeader
+                                    onSelectAll={handleSelectAll}
+                                    isAllSelected={isAllSelected}
+                                    isIndeterminate={isIndeterminate}
+                                    isHistoryMode={filters.status === "Completed"}
+                                    isHousekeepingOnly={isHousekeepingOnly}
+                                />
+                                <tbody className="bg-white divide-y divide-gray-100">
+                                    {displayTasks.length > 0 ? (
+                                        displayTasks.map((task, index) => (
+                                            <TaskRow
+                                                key={`${task.sourceSystem}-${task.id}`}
+                                                task={task}
+                                                isSelected={selectedItems.has(task.id)}
+                                                onSelect={handleSelectItem}
+                                                onView={handleViewTask}
+                                                rowData={rowData[task.id] || {}}
+                                                onRowDataChange={handleRowDataChange}
+                                                uploadedImage={uploadedImages[task.id]}
+                                                onImageUpload={handleImageUpload}
+                                                isHistoryMode={filters.status === "Completed"}
+                                                isHousekeepingOnly={isHousekeepingOnly}
+                                                seqNo={index + 1}
+                                                userRole={userRole}
+                                            />
+                                        ))
+                                    ) : (
+                                        <TaskTableEmpty hasFilters={hasFilters} />
+                                    )}
+                                </tbody>
+                            </table>
+                            {/* Loading indicator at bottom for infinite scroll */}
+                            {isFetchingMore && (
+                                <div className="bg-white border-t border-gray-200 py-3">
+                                    <div className="text-center">
+                                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+                                        <p className="text-blue-600 text-xs mt-2">Loading more tasks...</p>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 
-                {/* Pagination Controls */}
-                {filteredTasks.length > 0 && (
-                    <div className="bg-gray-50 border-t border-gray-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
-                        {/* Page Size Selector */}
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <span>📄 Show:</span>
-                            <select
-                                value={pageSize}
-                                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                                className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                {PAGE_SIZE_OPTIONS.map(size => (
-                                    <option key={size} value={size}>{size} per page</option>
-                                ))}
-                            </select>
-                        </div>
+                {/* Footer - Only show selection info, no pagination for infinite scroll */}
+                {displayTasks.length > 0 && (
+                    <div className="bg-gray-50 border-t border-gray-200 px-2 sm:px-4 py-2 sm:py-3">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                            {/* Task Count Info */}
+                            <div className="text-xs sm:text-sm text-gray-600">
+                                <span className="font-medium">{displayTasks.length}</span> tasks displayed
+                                {hasMore && <span className="text-blue-600 ml-1">• More available (scroll to load)</span>}
+                            </div>
 
-                        {/* Page Navigation */}
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => goToPage(1)}
-                                disabled={currentPage === 1}
-                                className="px-2 py-1 text-sm text-gray-600 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="First Page"
-                            >
-                                ⏮️
-                            </button>
-                            <button
-                                onClick={() => goToPage(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className="flex items-center px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <ChevronLeft className="h-4 w-4 mr-1" />
-                                Prev
-                            </button>
-
-                            <span className="px-4 py-1 text-sm font-medium bg-blue-100 text-blue-700 rounded-md">
-                                Page {currentPage} of {totalPages || 1}
-                            </span>
-
-                            <button
-                                onClick={() => goToPage(currentPage + 1)}
-                                disabled={currentPage >= totalPages}
-                                className="flex items-center px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Next
-                                <ChevronRight className="h-4 w-4 ml-1" />
-                            </button>
-                            <button
-                                onClick={() => goToPage(totalPages)}
-                                disabled={currentPage >= totalPages}
-                                className="px-2 py-1 text-sm text-gray-600 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Last Page"
-                            >
-                                ⏭️
-                            </button>
-                        </div>
-
-                        {/* Selection Info */}
-                        <div className="text-sm text-gray-600">
-                            {selectedItems.size > 0 && (
-                                <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                                    ✓ {selectedItems.size} selected
-                                </span>
-                            )}
+                            {/* Selection Info */}
+                            <div className="text-xs sm:text-sm text-gray-600">
+                                {selectedItems.size > 0 && (
+                                    <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-md whitespace-nowrap">
+                                        ✓ {selectedItems.size} selected
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}

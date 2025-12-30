@@ -1,5 +1,12 @@
 import { memo } from "react";
 import { Upload, Eye, CheckCircle } from "lucide-react";
+import { formatDateTime } from "../../utils/taskNormalizer";
+
+const DOER2_OPTIONS = [
+  "Sarad Behera",
+  "Tikeshware Chakradhari(KH)",
+  "Makhan Lal",
+];
 
 /**
  * TaskRow - Memoized row component for the unified task table
@@ -26,6 +33,9 @@ const TaskRow = memo(function TaskRow({
     uploadedImage,
     onImageUpload,
     isHistoryMode = false,  // New prop to detect history/completed mode
+    isHousekeepingOnly = false,  // New prop to detect if showing only housekeeping tasks
+    seqNo = 0,  // Sequence number for housekeeping table
+    userRole = "admin",  // User role to show DOER2 select box for user role
 }) {
     // Determine if this is a completed task (from history)
     const isCompleted = task.status === 'Completed' ||
@@ -84,6 +94,185 @@ const TaskRow = memo(function TaskRow({
         }
     };
 
+    // If housekeeping-only mode, render housekeeping-specific columns
+    if (isHousekeepingOnly && task.sourceSystem === 'housekeeping') {
+        return (
+            <tr className={`${isSelected ? "bg-blue-50" : isCompleted ? "bg-green-50/30" : ""} hover:bg-gray-50 border-b border-gray-100`}>
+                {/* Checkbox */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4 w-12">
+                    {isCompleted ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" title="Completed" />
+                    ) : (
+                        <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            checked={isSelected}
+                            onChange={handleCheckboxClick}
+                        />
+                    )}
+                </td>
+
+                {/* Seq. No. */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    <div className="text-xs sm:text-sm font-medium text-gray-900">
+                        {seqNo}
+                    </div>
+                </td>
+
+                {/* Task ID */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    <div className="text-xs sm:text-sm font-medium text-gray-900">
+                        {task.id || '—'}
+                    </div>
+                </td>
+
+                {/* Department */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    <div className="text-xs sm:text-sm text-gray-900">
+                        {task.department || '—'}
+                    </div>
+                </td>
+
+                {/* Doer Name 2 */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    {userRole?.toLowerCase() === 'user' && !isCompleted ? (
+                        <select
+                            value={rowData.doerName2 || task.assignedToSecondary || ""}
+                            onChange={(e) => handleDataChange("doerName2", e.target.value)}
+                            className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-gray-500"
+                        >
+                            <option value="">Select...</option>
+                            {DOER2_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt}>
+                                    {opt}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div className="text-xs sm:text-sm text-gray-900">
+                            {task.assignedToSecondary || rowData.doerName2 || '—'}
+                        </div>
+                    )}
+                </td>
+
+                {/* Task Description */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4 max-w-[200px]">
+                    <div
+                        className="text-xs sm:text-sm text-gray-900 line-clamp-2"
+                        title={task.title}
+                    >
+                        {task.title || '—'}
+                    </div>
+                </td>
+
+                {/* Task Start Date */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4 whitespace-nowrap">
+                    <div className="text-xs sm:text-sm text-gray-900">
+                        {task.taskStartDate ? formatDateTime(task.taskStartDate) : (task.dueDateFormatted || '—')}
+                    </div>
+                </td>
+
+                {/* Freq */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    <div className="text-xs sm:text-sm text-gray-900">
+                        {task.frequency || '—'}
+                    </div>
+                </td>
+
+                {/* Confirmed By HOD */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    <div className="text-xs sm:text-sm text-gray-900">
+                        {task.confirmedByHOD || '—'}
+                    </div>
+                </td>
+
+                {/* Status */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    {isCompleted ? (
+                        <span className="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                            ✅ {task.originalStatus || 'Yes'}
+                        </span>
+                    ) : (
+                        <select
+                            disabled={!isSelected}
+                            value={rowData.status || ""}
+                            onChange={(e) => handleDataChange("status", e.target.value)}
+                            className="border border-gray-300 rounded-md px-2 py-1 w-full text-xs disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        >
+                            <option value="">Select..</option>
+                            <option value="Yes">✅ Yes</option>
+                            <option value="No">❌ No</option>
+                        </select>
+                    )}
+                </td>
+
+                {/* Remarks */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    {isCompleted ? (
+                        <span className="text-xs text-gray-700 max-w-[100px] truncate block" title={task.remarks}>
+                            {task.remarks || '—'}
+                        </span>
+                    ) : (
+                        <input
+                            type="text"
+                            placeholder="Remarks"
+                            disabled={!isSelected}
+                            value={rowData.remarks || ""}
+                            onChange={(e) => handleDataChange("remarks", e.target.value)}
+                            className="border rounded-md px-2 py-1 w-full text-xs disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        />
+                    )}
+                </td>
+
+                {/* Image */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    {isCompleted ? (
+                        task.imageUrl ? (
+                            <img src={task.imageUrl} alt="Attached" className="h-8 w-8 object-cover rounded" />
+                        ) : (
+                            <span className="text-xs text-gray-400">No image</span>
+                        )
+                    ) : (
+                        <>
+                            <label className={`flex items-center cursor-pointer text-blue-600 hover:text-blue-800 text-xs ${!isSelected ? "opacity-50 cursor-not-allowed" : ""}`}>
+                                <Upload className="h-4 w-4 mr-1" />
+                                <span>Upload</span>
+                                <input
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                    disabled={!isSelected}
+                                />
+                            </label>
+                            {uploadedImage && (
+                                <div className="mt-1">
+                                    <img
+                                        src={uploadedImage.previewUrl}
+                                        alt="Preview"
+                                        className="h-8 w-8 object-cover rounded"
+                                    />
+                                </div>
+                            )}
+                        </>
+                    )}
+                </td>
+
+                {/* View Details Button */}
+                <td className="px-2 sm:px-3 py-2 sm:py-4">
+                    <button
+                        onClick={handleViewClick}
+                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                        title="View Details"
+                    >
+                        <Eye className="h-4 w-4" />
+                    </button>
+                </td>
+            </tr>
+        );
+    }
+
+    // Default unified row for mixed tasks
     return (
         <tr className={`${isSelected ? "bg-blue-50" : isCompleted ? "bg-green-50/30" : ""} hover:bg-gray-50 border-b border-gray-100`}>
             {/* Checkbox - ONLY show for pending tasks */}
@@ -296,9 +485,72 @@ export function TaskTableHeader({
     isAllSelected,
     isIndeterminate,
     isHistoryMode = false,
+    isHousekeepingOnly = false,
 }) {
+    // If showing only housekeeping tasks, use housekeeping-specific headers
+    if (isHousekeepingOnly) {
+        return (
+            <thead className="bg-gray-50 sticky top-0 z-20 shadow-sm">
+                <tr>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                        {isHistoryMode ? (
+                            <span>Status</span>
+                        ) : (
+                            <input
+                                type="checkbox"
+                                checked={isAllSelected}
+                                ref={(el) => {
+                                    if (el) el.indeterminate = isIndeterminate;
+                                }}
+                                onChange={onSelectAll}
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                        )}
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Seq. No.
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Task ID
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Department
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Doer Name 2
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Task Description
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Task Start Date
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Freq
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Confirmed By HOD
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Remarks
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Image
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        View
+                    </th>
+                </tr>
+            </thead>
+        );
+    }
+
+    // Default unified header for mixed tasks
     return (
-        <thead className="bg-gray-50 sticky top-0 z-10">
+        <thead className="bg-gray-50 sticky top-0 z-20 shadow-sm">
             <tr>
                 <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                     {isHistoryMode ? (

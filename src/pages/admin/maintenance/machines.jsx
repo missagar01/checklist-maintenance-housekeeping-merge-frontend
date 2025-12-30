@@ -75,7 +75,7 @@ const fetchSheetData = async (pageNumber = 1) => {
 
     }
   } catch (err) {
-    console.error("Fetch error:", err);
+    // Fetch error
   } finally {
     setLoaderSheetData(false);
     setLoadingMore(false);
@@ -84,8 +84,7 @@ const fetchSheetData = async (pageNumber = 1) => {
 
 
 useEffect(() => {
-  console.log("Page Height:", document.documentElement.scrollHeight);
-  console.log("Window Height:", window.innerHeight);
+  // Page height tracking
 }, [sheetData]);
 
 
@@ -123,7 +122,7 @@ const fetchMasterSheetData = async () => {
       setDepartmentOptions(departments);
     }
   } catch (err) {
-    console.error("Master data fetch error:", err);
+    // Master data fetch error
     setDepartmentOptions([]);
   } finally {
     setLoaderMasterSheetData(false);

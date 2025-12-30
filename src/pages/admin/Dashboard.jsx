@@ -42,6 +42,11 @@ export default function AdminDashboard() {
   const userRole = localStorage.getItem("role")
   const username = localStorage.getItem("user-name")
   const [dashboardView, setDashboardView] = useState("checklist") // New state for dashboard 
+  
+  // Get system_access and role to check if user has housekeeping access
+  // Hide housekeeping tab for user role OR if user doesn't have housekeeping in system_access
+  const systemAccess = (localStorage.getItem("system_access") || "").split(',').map(item => item.trim().toLowerCase())
+  const hasHousekeepingAccess = userRole?.toLowerCase() !== "user" && (systemAccess.length === 0 || systemAccess.includes('housekeeping'))
 
 
   // Pagination state
@@ -515,8 +520,6 @@ export default function AdminDashboard() {
         return
       }
 
-      console.log(`Fetched ${data.length} records successfully`)
-
       const username = localStorage.getItem("user-name")
       const userRole = localStorage.getItem("role")
       const today = new Date()
@@ -719,7 +722,7 @@ export default function AdminDashboard() {
 
       setIsLoadingMore(false)
     } catch (error) {
-      console.error(`Error fetching ${dashboardType} data:`, error)
+      // Error fetching data
       setIsLoadingMore(false)
     }
   }
@@ -728,16 +731,13 @@ export default function AdminDashboard() {
     if (dashboardType === 'checklist') {
       try {
         const departments = await getUniqueDepartmentsApi();
-        console.log('All departments from API:', departments);
 
         // Get user's department access
         const userAccess = localStorage.getItem("user_access") || "";
-        console.log('User access from localStorage:', userAccess);
 
         const userDepartments = userAccess
           ? userAccess.split(',').map(dept => dept.trim().toLowerCase())
           : [];
-        console.log('Parsed user departments:', userDepartments);
 
         // Filter departments based on user access for admin users
         let filteredDepartments = departments;
@@ -747,10 +747,9 @@ export default function AdminDashboard() {
           );
         }
 
-        console.log('Filtered departments:', filteredDepartments);
         setAvailableDepartments(filteredDepartments);
       } catch (error) {
-        console.error('Error fetching departments:', error);
+        // Error fetching departments
         setAvailableDepartments([]);
       }
     } else {
@@ -1017,15 +1016,17 @@ export default function AdminDashboard() {
             >
               Maintenance
             </button>
-            <button
-              onClick={() => setDashboardView("housekeeping")}
-              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${dashboardView === "housekeeping"
-                  ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-            >
-              Housekeeping
-            </button>
+            {hasHousekeepingAccess && (
+              <button
+                onClick={() => setDashboardView("housekeeping")}
+                className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${dashboardView === "housekeeping"
+                    ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+              >
+                Housekeeping
+              </button>
+            )}
           </div>
         </div>
 

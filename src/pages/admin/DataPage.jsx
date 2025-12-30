@@ -12,7 +12,6 @@ import DirectorDataPage from "./director-data-page.jsx"
 import ManagingDirector from "./managingDirector-data-page.jsx"
 import AdminDataPage from "./admin-data-page.jsx"
 import Coo from "./coo-data-page.jsx"
-import HousekeepingDataPage from "./housekeepingTask.jsx"
 import UnifiedTaskPage from "./UnifiedTaskPage.jsx"
 
 export default function DataPage() {
@@ -39,8 +38,7 @@ export default function DataPage() {
     //   return <JockeyDataPage />
     case "maintenance-task":
       return <MaintenanceDataPage />
-    case "housekepping-task":
-      return <HousekeepingDataPage />
+ 
     case "purchase":
       return <PurchaseDataPage />
     case "director":

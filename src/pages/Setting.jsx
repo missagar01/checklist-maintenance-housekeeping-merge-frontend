@@ -6,6 +6,18 @@ import { useDispatch, useSelector } from 'react-redux';
 import { createDepartment, createUser, deleteUser, departmentOnlyDetails, givenByDetails, departmentDetails, updateDepartment, updateUser, userDetails } from '../redux/slice/settingSlice';
 // import supabase from '../SupabaseClient';
 
+const SYSTEM_ACCESS_OPTIONS = ['Checklist', 'Maintenance', 'Housekeeping'];
+const PAGE_ACCESS_OPTIONS = [
+  { value: 'dashboard', label: 'Dashboard' },
+  { value: 'quick-task', label: 'Quick Task' },
+  { value: 'machines', label: 'Machines' },
+  { value: 'assign-task', label: 'Assign Task' },
+  { value: 'delegation', label: 'Delegation' },
+  { value: 'all-task', label: 'All Task' },
+  { value: 'mis-report', label: 'MIS Report' },
+  { value: 'setting', label: 'Setting' },
+];
+
 const Setting = () => {
   const [activeTab, setActiveTab] = useState('users');
   const [showUserModal, setShowUserModal] = useState(false);
@@ -39,18 +51,18 @@ const Setting = () => {
 };
 
 const fetchDeviceLogsAndUpdateStatus = async () => {
-  return
-  try {
-    setIsRefreshing(true);
-    // const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/logs/device-sync`);
-    const data = await response.json();
-    console.log(data.message);
-    dispatch(userDetails());
-  } catch (error) {
-    console.error('Error syncing device logs:', error);
-  } finally {
-    setIsRefreshing(false);
-  }
+  return; // Early return - function is disabled
+  // try {
+  //   setIsRefreshing(true);
+  //   const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/logs/device-sync`);
+  //   const data = await response.json();
+  //   console.log(data.message);
+  //   dispatch(userDetails());
+  // } catch (error) {
+  //   console.error('Error syncing device logs:', error);
+  // } finally {
+  //   setIsRefreshing(false);
+  // }
 };
 
 
@@ -93,36 +105,36 @@ useEffect(() => {
   //   };
   // }, [dispatch]);
 
-  // Add this function to debug a specific user
-const debugUserStatus = async () => {
-  try {
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('user_name', 'Hem Kumar Jagat');
-    
-    if (error) {
-      console.error('Error fetching user:', error);
-      return;
-    }
-    
-    if (users && users.length > 0) {
-      const user = users[0];
-      // console.log('🔍 DEBUG - Hem Kumar Jagat:', {
-      //   id: user.id,
-      //   username: user.user_name,
-      //   employee_id: user.employee_id,
-      //   current_status: user.status,
-      //   last_punch_time: user.last_punch_time,
-      //   last_punch_device: user.last_punch_device
-      // });
-    } else {
-      console.log('User "Hem Kumar Jagat" not found');
-    }
-  } catch (error) {
-    console.error('Error in debug:', error);
-  }
-};
+  // Add this function to debug a specific user (commented out - requires supabase)
+// const debugUserStatus = async () => {
+//   try {
+//     const { data: users, error } = await supabase
+//       .from('users')
+//       .select('*')
+//       .eq('user_name', 'Hem Kumar Jagat');
+//     
+//     if (error) {
+//       console.error('Error fetching user:', error);
+//       return;
+//     }
+//     
+//     if (users && users.length > 0) {
+//       const user = users[0];
+//       // console.log('🔍 DEBUG - Hem Kumar Jagat:', {
+//       //   id: user.id,
+//       //   username: user.user_name,
+//       //   employee_id: user.employee_id,
+//       //   current_status: user.status,
+//       //   last_punch_time: user.last_punch_time,
+//       //   last_punch_device: user.last_punch_device
+//       // });
+//     } else {
+//       console.log('User "Hem Kumar Jagat" not found');
+//     }
+//   } catch (error) {
+//     console.error('Error in debug:', error);
+//   }
+// };
 
 // Call this to check the current status
 // debugUserStatus();
@@ -276,46 +288,7 @@ const handleSubmitLeave = async () => {
     }
   };
 
-  // Add to your handleAddButtonClick function
-
-
-
-
-
-  // Sample data
-  // const [users, setUsers] = useState([
-  //   {
-  //     id: '1',
-  //     username: 'john_doe',
-  //     email: 'john@example.com',
-  //     password: '********',
-  //     department: 'IT',
-  //     givenBy: 'admin',
-  //     phone: '1234567890',
-  //     role: 'user',
-  //     status: 'active'
-  //   },
-  //   {
-  //     id: '2',
-  //     username: 'jane_smith',
-  //     email: 'jane@example.com',
-  //     password: '********',
-  //     department: 'HR',
-  //     givenBy: 'admin',
-  //     phone: '0987654321',
-  //     role: 'admin',
-  //     status: 'active'
-  //   }
-  // ]);
-
-  // const [departments, setDepartments] = useState([
-  //   { id: '1', name: 'IT', givenBy: 'super_admin' },
-  //   { id: '2', name: 'HR', givenBy: 'super_admin' },
-  //   { id: '3', name: 'Finance', givenBy: 'admin' }
-  // ]);
-
-  // Form states
-  // Change this in your form state initialization:
+  
 const [userForm, setUserForm] = useState({
   username: '',
   email: '',
@@ -325,7 +298,10 @@ const [userForm, setUserForm] = useState({
   departments: [], // Change from single department to array
   givenBy: '',
   role: 'user',
-  status: 'active'
+  status: 'active',
+  user_access1: '',
+  systemAccess: [],
+  pageAccess: []
 });
 
   const [deptForm, setDeptForm] = useState({
@@ -345,6 +321,9 @@ const handleAddUser = async (e) => {
   const newUser = {
     ...userForm,
     user_access: userForm.departments.join(','), // Join array into comma-separated string
+    user_access1: userForm.user_access1 || '', // Include user_access1
+    system_access: userForm.systemAccess.join(','),
+    page_access: userForm.pageAccess.join(',')
   };
 
   try {
@@ -369,7 +348,10 @@ const handleUpdateUser = async (e) => {
     employee_id: userForm.employee_id,
     role: userForm.role,
     status: userForm.status,
-    user_access: userForm.departments.join(',') // Join array into comma-separated string
+    user_access: userForm.departments.join(','), // Join array into comma-separated string
+    user_access1: userForm.user_access1 || '', // Include user_access1
+    system_access: userForm.systemAccess.join(','),
+    page_access: userForm.pageAccess.join(',')
   };
 
   // Only include password if it's not empty
@@ -433,7 +415,7 @@ const handleUpdateUser = async (e) => {
 
   // User form handlers
 const handleUserInputChange = (e) => {
-  const { name, value, type, options } = e.target;
+  const { name, value, options } = e.target;
   
   if (name === 'departments') {
     // For multi-select dropdown
@@ -445,6 +427,30 @@ const handleUserInputChange = (e) => {
   } else {
     setUserForm(prev => ({ ...prev, [name]: value }));
   }
+};
+
+const toggleSystemAccessOption = (option) => {
+  setUserForm(prev => {
+    const hasOption = prev.systemAccess.includes(option);
+    return {
+      ...prev,
+      systemAccess: hasOption
+        ? prev.systemAccess.filter(item => item !== option)
+        : [...prev.systemAccess, option],
+    };
+  });
+};
+
+const togglePageAccessOption = (option) => {
+  setUserForm(prev => {
+    const hasOption = prev.pageAccess.includes(option);
+    return {
+      ...prev,
+      pageAccess: hasOption
+        ? prev.pageAccess.filter(item => item !== option)
+        : [...prev.pageAccess, option],
+    };
+  });
 };
 
 // Get unique departments from department data
@@ -491,7 +497,10 @@ const handleEditUser = (userId) => {
     employee_id: user.employee_id || '',
     departments: user.user_access ? user.user_access.split(',').map(d => d.trim()) : [], // Split comma-separated string into array
     role: user.role,
-    status: user.status
+    status: user.status,
+    user_access1: user.user_access1 || '', // Include user_access1
+    systemAccess: user.system_access ? user.system_access.split(',').map(item => item.trim()).filter(Boolean) : [],
+    pageAccess: user.page_access ? user.page_access.split(',').map(item => item.trim()).filter(Boolean) : []
   });
   setCurrentUserId(userId);
   setIsEditing(true);
@@ -528,7 +537,10 @@ const resetUserForm = () => {
     departments: [], // Reset to empty array
     givenBy: '',
     role: 'user',
-    status: 'active'
+    status: 'active',
+    user_access1: '', // Reset user_access1
+    systemAccess: [],
+    pageAccess: []
   });
   setIsEditing(false);
   setCurrentUserId(null);
@@ -597,70 +609,68 @@ const resetUserForm = () => {
     <AdminLayout>
       <div className="space-y-8">
         {/* Header and Tabs */}
-       {/* Header and Tabs */}
-<div className="my-5 flex justify-between">
-  <div className="flex justify-between items-center mb-6">
-    <h1 className="text-2xl font bold text-purple-600 font-bold">User Management System</h1>
-  </div>
+        <div className="my-3 sm:my-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <h1 className="text-xl sm:text-2xl font-bold text-purple-600">User Management System</h1>
+            
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+              <div className="flex border border-purple-200 rounded-md overflow-hidden w-full sm:w-auto">
+                <button
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium ${activeTab === 'users' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+                  onClick={() => {
+                    handleTabChange('users');
+                    dispatch(userDetails());
+                  }}
+                >
+                  <User size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span className="hidden xs:inline">Users</span>
+                </button>
+                <button
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium ${activeTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+                  onClick={() => {
+                    handleTabChange('departments');
+                    dispatch(departmentOnlyDetails());
+                    dispatch(givenByDetails());
+                  }}
+                >
+                  <Building size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span className="hidden xs:inline">Departments</span>
+                </button>
+                <button
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium ${activeTab === 'leave' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+                  onClick={() => {
+                    handleTabChange('leave');
+                    dispatch(userDetails());
+                  }}
+                >
+                  <Calendar size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span className="hidden xs:inline">Leave</span>
+                </button>
+              </div>
 
-  <div className="flex items-center gap-4">
-    <div className="flex border border-purple-200 rounded-md overflow-hidden self-start">
-      {/* Your existing tab buttons */}
-      <button
-        className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'users' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-        onClick={() => {
-          handleTabChange('users');
-          dispatch(userDetails());
-        }}
-      >
-        <User size={18} />
-        Users
-      </button>
-      <button
-        className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-        onClick={() => {
-          handleTabChange('departments');
-          dispatch(departmentOnlyDetails());
-          dispatch(givenByDetails());
-        }}
-      >
-        <Building size={18} />
-        Departments
-      </button>
-      <button
-        className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'leave' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-        onClick={() => {
-          handleTabChange('leave');
-          dispatch(userDetails());
-        }}
-      >
-        <Calendar size={18} />
-        Leave Management
-      </button>
-    </div>
-
-        <button
-  onClick={fetchDeviceLogsAndUpdateStatus}
-  disabled={isRefreshing}
-  className="rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700"
->
-  <div className="flex items-center">
-    <RefreshCw size={18} className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-    <span>{isRefreshing ? 'Refreshing...' : 'Refresh Status'}</span>
-  </div>
-</button>
+              <button
+                onClick={fetchDeviceLogsAndUpdateStatus}
+                disabled={isRefreshing}
+                className="w-full sm:w-auto rounded-md bg-green-600 py-2 px-3 sm:px-4 text-white hover:bg-green-700 text-xs sm:text-sm"
+              >
+                <div className="flex items-center justify-center">
+                  <RefreshCw size={16} className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh Status'}</span>
+                  <span className="sm:hidden">Refresh</span>
+                </div>
+              </button>
 
 
-    {/* Add this debug button temporarily next to your refresh button */}
-<button
-  onClick={debugUserStatus}
-  className="rounded-md bg-yellow-600 py-2 px-4 text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
->
-  <div className="flex items-center">
-    <Search size={18} className="mr-2" />
-    <span>Debug User</span>
-  </div>
-</button>
+    {/* Debug button commented out - requires supabase */}
+    {/* <button
+      onClick={debugUserStatus}
+      className="rounded-md bg-yellow-600 py-2 px-4 text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
+    >
+      <div className="flex items-center">
+        <Search size={18} className="mr-2" />
+        <span>Debug User</span>
+      </div>
+    </button> */}
 
     {/* Refresh Button
     <button
@@ -674,20 +684,21 @@ const resetUserForm = () => {
       </div>
     </button> */}
 
-    {/* Add button - hide for leave tab */}
-    {activeTab !== 'leave' && (
-      <button
-        onClick={handleAddButtonClick}
-        className="rounded-md gradient-bg py-2 px-4 text-white hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
-        <div className="flex items-center">
-          <Plus size={18} className="mr-2" />
-          <span>{activeTab === 'users' ? 'Add User' : 'Add Department'}</span>
+              {/* Add button - hide for leave tab */}
+              {activeTab !== 'leave' && (
+                <button
+                  onClick={handleAddButtonClick}
+                  className="w-full sm:w-auto rounded-md gradient-bg py-2 px-3 sm:px-4 text-white hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-xs sm:text-sm"
+                >
+                  <div className="flex items-center justify-center">
+                    <Plus size={16} className="mr-2" />
+                    <span>{activeTab === 'users' ? 'Add User' : 'Add Department'}</span>
+                  </div>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-      </button>
-    )}
-  </div>
-</div>
 {/* <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
         <h3 className="text-sm font-medium text-yellow-800">Debug Info</h3>
         <p className="text-xs text-yellow-700">
@@ -704,13 +715,13 @@ const resetUserForm = () => {
         {/* Leave Management Tab */}
         {activeTab === 'leave' && (
           <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4 border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-medium text-purple-700">Leave Management</h2>
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-3 sm:px-6 py-3 sm:py-4 border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+                <h2 className="text-base sm:text-lg font-medium text-purple-700">Leave Management</h2>
 
-              <div className="flex items-center gap-4">
-                {/* Username Search Filter for Leave Tab */}
-                <div className="relative">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+                  {/* Username Search Filter for Leave Tab */}
+                  <div className="relative w-full sm:w-auto">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                       <input
@@ -719,7 +730,7 @@ const resetUserForm = () => {
                         placeholder="Filter by username..."
                         value={leaveUsernameFilter}
                         onChange={(e) => setLeaveUsernameFilter(e.target.value)}
-                        className="w-48 pl-10 pr-8 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                        className="w-full sm:w-48 pl-10 pr-8 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                       />
                       <datalist id="leaveUsernameOptions">
                         {userData?.map(user => (
@@ -738,22 +749,22 @@ const resetUserForm = () => {
                       )}
                     </div>
                   </div>
-                </div>
 
-                {/* Submit Button */}
-                <button
-                  onClick={handleSubmitLeave}
-                  className="rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                >
-                  Submit Leave
-                </button>
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleSubmitLeave}
+                    className="w-full sm:w-auto rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-sm"
+                  >
+                    Submit Leave
+                  </button>
+                </div>
               </div>
             </div>
 
 
             {/* Leave Form */}
-<div className="p-6 border-b border-gray-200">
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="p-3 sm:p-6 border-b border-gray-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Leave Start Date
@@ -776,325 +787,311 @@ const resetUserForm = () => {
         className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
       />
     </div>
-    <div className="md:col-span-2">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Remarks
-      </label>
-      <input
-        type="text"
-        value={remark}
-        onChange={(e) => setRemark(e.target.value)}
-        placeholder="Enter remarks"
-        className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-      />
-    </div>
-  </div>
-</div>
+                <div className="sm:col-span-2 lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Remarks
+                  </label>
+                  <input
+                    type="text"
+                    value={remark}
+                    onChange={(e) => setRemark(e.target.value)}
+                    placeholder="Enter remarks"
+                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
 
-            {/* Users List for Leave Selection - Updated with filter */}
             {/* Users List for Leave Selection */}
-<div className="h-[calc(100vh-400px)] overflow-auto">
-  <table className="min-w-full divide-y divide-gray-200">
-    <thead className="bg-gray-50">
-      <tr>
-        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          <input
-            type="checkbox"
-            onChange={handleSelectAll}
-            checked={selectedUsers.length === filteredLeaveUsers?.length && filteredLeaveUsers?.length > 0}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-        </th>
-        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Username
-        </th>
-        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Current Leave Start Date
-        </th>
-        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Current Leave End Date
-        </th>
-        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Current Remarks
-        </th>
-      </tr>
-    </thead>
-    <tbody className="bg-white divide-y divide-gray-200">
-      {filteredLeaveUsers?.map((user) => (
-        <tr key={user.id} className="hover:bg-gray-50">
-          <td className="px-6 py-4 whitespace-nowrap">
-            <input
-              type="checkbox"
-              checked={selectedUsers.includes(user.id)}
-              onChange={(e) => handleUserSelection(user.id, e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <div className="text-sm font-medium text-gray-900">{user.user_name}</div>
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <div className="text-sm text-gray-900">
-              {user.leave_date ? new Date(user.leave_date).toLocaleDateString() : 'No leave set'}
+            <div className="h-[calc(100vh-400px)] sm:h-[calc(100vh-350px)] overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <input
+                        type="checkbox"
+                        onChange={handleSelectAll}
+                        checked={selectedUsers.length === filteredLeaveUsers?.length && filteredLeaveUsers?.length > 0}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Username
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Start Date
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      End Date
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Remarks
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredLeaveUsers?.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.includes(user.id)}
+                          onChange={(e) => handleUserSelection(user.id, e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <div className="text-xs sm:text-sm font-medium text-gray-900">{user.user_name}</div>
+                      </td>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <div className="text-xs sm:text-sm text-gray-900">
+                          {user.leave_date ? new Date(user.leave_date).toLocaleDateString() : 'No leave set'}
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <div className="text-xs sm:text-sm text-gray-900">
+                          {user.leave_end_date ? new Date(user.leave_end_date).toLocaleDateString() : 'No end date set'}
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <div className="text-xs sm:text-sm text-gray-900">{user.remark || 'No remarks'}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <div className="text-sm text-gray-900">
-              {user.leave_end_date ? new Date(user.leave_end_date).toLocaleDateString() : 'No end date set'}
-            </div>
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <div className="text-sm text-gray-900">{user.remark || 'No remarks'}</div>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
           </div>
         )}
 
 
         {/* Users Tab */}
-        {/* Users Tab */}
-{activeTab === 'users' && (
-  <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
-    <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4 border-gray-200 flex justify-between items-center">
-      <h2 className="text-lg font-medium text-purple-700">User List</h2>
+        {activeTab === 'users' && (
+          <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-3 sm:px-6 py-3 sm:py-4 border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+                <h2 className="text-base sm:text-lg font-medium text-purple-700">User List</h2>
 
-      {/* Username Filter */}
-      <div className="relative">
-        <div className="flex items-center gap-2">
-          {/* Input with datalist for autocomplete */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-            <input
-              type="text"
-              list="usernameOptions"
-              placeholder="Filter by username..."
-              value={usernameFilter}
-              onChange={(e) => setUsernameFilter(e.target.value)}
-              className="w-48 pl-10 pr-8 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-            />
-            <datalist id="usernameOptions">
-              {userData?.map(user => (
-                <option key={user.id} value={user.user_name} />
-              ))}
-            </datalist>
+                {/* Username Filter */}
+                <div className="relative w-full sm:w-auto">
+                  <div className="flex items-center gap-2">
+                    {/* Input with datalist for autocomplete */}
+                    <div className="relative flex-1 sm:flex-none">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        type="text"
+                        list="usernameOptions"
+                        placeholder="Filter by username..."
+                        value={usernameFilter}
+                        onChange={(e) => setUsernameFilter(e.target.value)}
+                        className="w-full sm:w-48 pl-10 pr-8 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                      />
+                      <datalist id="usernameOptions">
+                        {userData?.map(user => (
+                          <option key={user.id} value={user.user_name} />
+                        ))}
+                      </datalist>
 
-            {/* Clear button for input */}
-            {usernameFilter && (
-              <button
-                onClick={clearUsernameFilter}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X size={16} />
-              </button>
-            )}
-          </div>
-
-          {/* Dropdown button */}
-          <button
-            onClick={toggleUsernameDropdown}
-            className="flex items-center gap-1 px-3 py-2 border border-purple-200 rounded-md bg-white text-sm text-gray-700 hover:bg-gray-50"
-          >
-            <ChevronDown size={16} className={`transition-transform ${usernameDropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
-
-        {/* Dropdown menu */}
-        {usernameDropdownOpen && (
-          <div className="absolute z-50 mt-1 w-56 rounded-md bg-white shadow-lg border border-gray-200 max-h-60 overflow-auto top-full right-0">
-            <div className="py-1">
-              <button
-                onClick={clearUsernameFilter}
-                className={`block w-full text-left px-4 py-2 text-sm ${!usernameFilter ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
-              >
-                All Usernames
-              </button>
-              {userData?.map(user => (
-                <button
-                  key={user.id}
-                  onClick={() => handleUsernameFilterSelect(user.user_name)}
-                  className={`block w-full text-left px-4 py-2 text-sm ${usernameFilter === user.user_name ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
-                >
-                  {user.user_name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-
-    <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Username
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Password
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Email
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Phone No.
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Employee ID
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Department
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Role
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Page Access
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {/* {userData
-            ?.filter(user =>
-              user.user_name !== 'admin' &&
-              user.user_name !== 'DSMC' && (
-                !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase()))
-            ) */}
-             {userData
-            ?.filter(user =>
-              !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase())
-            )
-            .map((user, index) => (
-              <tr key={index} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="text-sm font-medium text-gray-900">{user?.user_name}</div>
-                  </div>
-                </td>
-               <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono">
-                        {showPasswords[user.id] ? user?.password : '••••••••'}
-                      </span>
-                      <button
-                        onClick={() => togglePasswordVisibility(user.id)}
-                        className="text-gray-500 hover:text-blue-600 text-xs"
-                        title={showPasswords[user.id] ? "Hide Password" : "Show Password"}
-                      >
-                        {showPasswords[user.id] ? '👁️‍🗨️' : '👁️'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(user?.password || '');
-                          alert('Password copied to clipboard!');
-                        }}
-                        className="text-blue-600 hover:text-blue-800 text-xs bg-blue-50 px-2 py-1 rounded"
-                        title="Copy Password"
-                      >
-                        Copy
-                      </button>
+                      {/* Clear button for input */}
+                      {usernameFilter && (
+                        <button
+                          onClick={clearUsernameFilter}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{user?.email_id}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{user?.number}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{user?.employee_id || 'N/A'}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{user?.user_access || 'N/A'}</div>
-                </td>
-                
-                {/* Status Cell */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(user?.status)}`}>
-                      {user?.status}
-                    </span>
-                    {user?.status === 'active' && (
-                      <span className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Live Status"></span>
-                    )}
-                  </div>
-                </td>
-                
-                {/* Role Cell */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(user?.role)}`}>
-                    {user?.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(user?.role)}`}>
-                    {user?.page_access}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex space-x-2">
+
+                    {/* Dropdown button */}
                     <button
-                      onClick={() => handleEditUser(user?.id)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Edit User"
+                      onClick={toggleUsernameDropdown}
+                      className="flex items-center gap-1 px-3 py-2 border border-purple-200 rounded-md bg-white text-sm text-gray-700 hover:bg-gray-50"
                     >
-                      <Edit size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUser(user?.id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete User"
-                    >
-                      <Trash2 size={18} />
+                      <ChevronDown size={16} className={`transition-transform ${usernameDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
+
+                  {/* Dropdown menu */}
+                  {usernameDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full sm:w-56 rounded-md bg-white shadow-lg border border-gray-200 max-h-60 overflow-auto top-full right-0">
+                      <div className="py-1">
+                        <button
+                          onClick={clearUsernameFilter}
+                          className={`block w-full text-left px-4 py-2 text-sm ${!usernameFilter ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          All Usernames
+                        </button>
+                        {userData?.map(user => (
+                          <button
+                            key={user.id}
+                            onClick={() => handleUsernameFilterSelect(user.user_name)}
+                            className={`block w-full text-left px-4 py-2 text-sm ${usernameFilter === user.user_name ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
+                          >
+                            {user.user_name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="h-[calc(100vh-275px)] sm:h-[calc(100vh-250px)] overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Username
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Password
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Emp ID
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Department
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Page Access
+                    </th>
+                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {userData
+                    ?.filter(user =>
+                      !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase())
+                    )
+                    .map((user, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm font-medium text-gray-900">{user?.user_name}</div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm text-gray-900">
+                            <div className="flex items-center space-x-1 sm:space-x-2">
+                              <span className="font-mono text-xs">
+                                {showPasswords[user.id] ? user?.password : '••••••••'}
+                              </span>
+                              <button
+                                onClick={() => togglePasswordVisibility(user.id)}
+                                className="text-gray-500 hover:text-blue-600 text-xs"
+                                title={showPasswords[user.id] ? "Hide Password" : "Show Password"}
+                              >
+                                {showPasswords[user.id] ? '👁️‍🗨️' : '👁️'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(user?.password || '');
+                                  alert('Password copied to clipboard!');
+                                }}
+                                className="text-blue-600 hover:text-blue-800 text-xs bg-blue-50 px-1 sm:px-2 py-1 rounded"
+                                title="Copy Password"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm text-gray-900 truncate max-w-[120px] sm:max-w-none">{user?.email_id}</div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm text-gray-900">{user?.number}</div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm text-gray-900">{user?.employee_id || 'N/A'}</div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm text-gray-900 truncate max-w-[100px] sm:max-w-none">{user?.user_access || 'N/A'}</div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(user?.status)}`}>
+                              {user?.status}
+                            </span>
+                            {user?.status === 'active' && (
+                              <span className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Live Status"></span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(user?.role)}`}>
+                            {user?.role}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(user?.role)} truncate max-w-[100px] sm:max-w-none`}>
+                            {user?.page_access}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex space-x-1 sm:space-x-2 justify-end">
+                            <button
+                              onClick={() => handleEditUser(user?.id)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Edit User"
+                            >
+                              <Edit size={16} className="sm:w-[18px] sm:h-[18px]" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user?.id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete User"
+                            >
+                              <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Departments Tab */}
-       {/* Departments Tab */}
-{/* Departments Tab */}
-{activeTab === 'departments' && (
-  <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
-    <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4 border-gray-200">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium text-purple-700">Department Management</h2>
-        
-        {/* Sub-tabs for Departments and Given By */}
-        <div className="flex border border-purple-200 rounded-md overflow-hidden">
-          <button
-            className={`px-4 py-2 text-sm font-medium ${activeDeptSubTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-            onClick={() => setActiveDeptSubTab('departments')}
-          >
-            Departments
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium ${activeDeptSubTab === 'givenBy' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-            onClick={() => setActiveDeptSubTab('givenBy')}
-          >
-            Given By
-          </button>
-        </div>
-      </div>
-    </div>
+        {activeTab === 'departments' && (
+          <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-3 sm:px-6 py-3 sm:py-4 border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+                <h2 className="text-base sm:text-lg font-medium text-purple-700">Department Management</h2>
+                
+                {/* Sub-tabs for Departments and Given By */}
+                <div className="flex border border-purple-200 rounded-md overflow-hidden w-full sm:w-auto">
+                  <button
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium ${activeDeptSubTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+                    onClick={() => setActiveDeptSubTab('departments')}
+                  >
+                    Departments
+                  </button>
+                  <button
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium ${activeDeptSubTab === 'givenBy' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+                    onClick={() => setActiveDeptSubTab('givenBy')}
+                  >
+                    Given By
+                  </button>
+                </div>
+              </div>
+            </div>
 
     {/* Loading State */}
     {loading && (
@@ -1111,259 +1108,261 @@ const resetUserForm = () => {
       </div>
     )}
 
-    {/* Departments Sub-tab - Show only department names */}
-    {activeDeptSubTab === 'departments' && !loading && (
-      <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                ID
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Department Name
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {department && department.length > 0 ? (
-              // Get unique departments and show them
-              Array.from(new Map(department.map(dept => [dept.department, dept])).values())
-                .filter(dept => dept?.department && dept.department.trim() !== '')
-                .map((dept, index) => (
-                  <tr key={dept.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dept.department}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEditDepartment(dept.id)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          <Edit size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-            ) : (
-              <tr>
-                <td colSpan="3" className="px-6 py-4 text-center text-sm text-gray-500">
-                  No departments found
-                </td>
-              </tr>
+            {/* Departments Sub-tab - Show only department names */}
+            {activeDeptSubTab === 'departments' && !loading && (
+              <div className="h-[calc(100vh-275px)] sm:h-[calc(100vh-250px)] overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        ID
+                      </th>
+                      <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Department Name
+                      </th>
+                      <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {department && department.length > 0 ? (
+                      // Get unique departments and show them
+                      Array.from(new Map(department.map(dept => [dept.department, dept])).values())
+                        .filter(dept => dept?.department && dept.department.trim() !== '')
+                        .map((dept, index) => (
+                          <tr key={dept.id} className="hover:bg-gray-50">
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">{index + 1}</td>
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">{dept.department}</td>
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex space-x-2 justify-end">
+                                <button
+                                  onClick={() => handleEditDepartment(dept.id)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  <Edit size={16} className="sm:w-[18px] sm:h-[18px]" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                    ) : (
+                      <tr>
+                        <td colSpan="3" className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500">
+                          No departments found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </tbody>
-        </table>
-      </div>
-    )}
 
-    {/* Given By Sub-tab - Show only given_by values */}
-    {activeDeptSubTab === 'givenBy' && !loading && (
-      <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                ID
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Given By
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {department && department.length > 0 ? (
-              // Get unique given_by values and show them
-              Array.from(new Map(department.map(dept => [dept.given_by, dept])).values())
-                .filter(dept => dept?.given_by && dept.given_by.trim() !== '')
-                .map((dept, index) => (
-                  <tr key={dept.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dept.given_by}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEditDepartment(dept.id)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          <Edit size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-            ) : (
-              <tr>
-                <td colSpan="3" className="px-6 py-4 text-center text-sm text-gray-500">
-                  No given by data found
-                </td>
-              </tr>
+            {/* Given By Sub-tab - Show only given_by values */}
+            {activeDeptSubTab === 'givenBy' && !loading && (
+              <div className="h-[calc(100vh-275px)] sm:h-[calc(100vh-250px)] overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        ID
+                      </th>
+                      <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Given By
+                      </th>
+                      <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {department && department.length > 0 ? (
+                      // Get unique given_by values and show them
+                      Array.from(new Map(department.map(dept => [dept.given_by, dept])).values())
+                        .filter(dept => dept?.given_by && dept.given_by.trim() !== '')
+                        .map((dept, index) => (
+                          <tr key={dept.id} className="hover:bg-gray-50">
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">{index + 1}</td>
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">{dept.given_by}</td>
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex space-x-2 justify-end">
+                                <button
+                                  onClick={() => handleEditDepartment(dept.id)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  <Edit size={16} className="sm:w-[18px] sm:h-[18px]" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                    ) : (
+                      <tr>
+                        <td colSpan="3" className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500">
+                          No given by data found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </div>
-)}
+          </div>
+        )}
 
         {/* User Modal */}
         {showUserModal && (
-          <div className="fixed z-10 inset-0 overflow-y-auto">
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-              </div>
-              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-              <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
-                <div>
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      {isEditing ? 'Edit User' : 'Create New User'}
-                    </h3>
-                    <button
-                      onClick={() => setShowUserModal(false)}
-                      className="text-gray-400 hover:text-gray-500"
-                    >
-                      <X size={24} />
-                    </button>
-                  </div>
-                  <div className="mt-6">
-                    <form onSubmit={isEditing ? handleUpdateUser : handleAddUser}>
-                      <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                        <div className="sm:col-span-3">
-                          <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                            Username
-                          </label>
+          <div className="fixed z-50 inset-0 overflow-y-auto" onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowUserModal(false);
+            }
+          }}>
+            <div className="flex items-center justify-center min-h-screen px-2 sm:px-4 py-4">
+              <div className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-white z-10 border-b border-gray-200 px-4 sm:px-6 py-4 flex justify-between items-center">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
+                    {isEditing ? 'Edit User' : 'Create New User'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowUserModal(false);
+                      resetUserForm();
+                    }}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 rounded p-1"
+                    aria-label="Close"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                <div className="px-4 sm:px-6 py-4 bg-white">
+                  <form onSubmit={isEditing ? handleUpdateUser : handleAddUser} className="bg-white">
+                    <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 bg-white">
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                          Username
+                        </label>
+                        <input
+                          type="text"
+                          name="username"
+                          id="username"
+                          value={userForm.username}
+                          onChange={handleUserInputChange}
+                          className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                          Password
+                        </label>
+                        <div className="relative">
                           <input
-                            type="text"
-                            name="username"
-                            id="username"
-                            value={userForm.username}
+                            type={showModalPassword ? "text" : "password"}
+                            name="password"
+                            id="password"
+                            value={userForm.password}
                             onChange={handleUserInputChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder={isEditing ? "Leave empty to keep current password" : "Enter password"}
                           />
-                        </div>
-
-  {/* In the User Modal form */}
-<div className="sm:col-span-3">
-  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-    Password
-  </label>
-  <div className="relative mt-1">
-    <input
-      type={showModalPassword ? "text" : "password"}
-      name="password"
-      id="password"
-      value={userForm.password}
-      onChange={handleUserInputChange}
-      className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm pr-10"
-      placeholder={isEditing ? "Leave empty to keep current password" : "Enter password"}
-    />
-    <button
-      type="button"
-      onClick={() => setShowModalPassword(!showModalPassword)}
-      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-    >
-      {showModalPassword ? (
-        <EyeOff size={18} className="text-gray-400 hover:text-gray-600" />
-      ) : (
-        <Eye size={18} className="text-gray-400 hover:text-gray-600" />
-      )}
-    </button>
-  </div>
-  {isEditing && (
-    <p className="mt-1 text-xs text-gray-500">
-      Leave empty to keep current password
-    </p>
-  )}
-</div>
-
-                        <div className="sm:col-span-3">
-                          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                            Email
-                          </label>
-                          <input
-                            type="email"
-                            name="email"
-                            id="email"
-                            value={userForm.email}
-                            onChange={handleUserInputChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          />
-                        </div>
-
-                        {!isEditing && (
-                          <div className="sm:col-span-3">
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                              Password
-                            </label>
-                            <input
-                              type="password"
-                              name="password"
-                              id="password"
-                              value={userForm.password}
-                              onChange={handleUserInputChange}
-                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            />
-                          </div>
-                        )}
-
-                        <div className="sm:col-span-3">
-                          <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                            Phone
-                          </label>
-                          <input
-                            type="tel"
-                            name="phone"
-                            id="phone"
-                            value={userForm.phone}
-                            onChange={handleUserInputChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          />
-                        </div>
-
-
-
-                        <div className="sm:col-span-3">
-  <label htmlFor="employee_id" className="block text-sm font-medium text-gray-700">
-    Employee ID
-  </label>
-  <input
-    type="text"
-    name="employee_id"
-    id="employee_id"
-    value={userForm.employee_id}
-    onChange={handleUserInputChange}
-    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-    placeholder="Enter Employee ID"
-  />
-</div>
-
-                        <div className="sm:col-span-3">
-                          <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                            Role
-                          </label>
-                          <select
-                            id="role"
-                            name="role"
-                            value={userForm.role}
-                            onChange={handleUserInputChange}
-                            className="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          <button
+                            type="button"
+                            onClick={() => setShowModalPassword(!showModalPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none"
                           >
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                          </select>
+                            {showModalPassword ? (
+                              <EyeOff size={18} className="text-gray-400 hover:text-gray-600" />
+                            ) : (
+                              <Eye size={18} className="text-gray-400 hover:text-gray-600" />
+                            )}
+                          </button>
                         </div>
+                        {isEditing && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            Leave empty to keep current password
+                          </p>
+                        )}
+                      </div>
 
-                      {/* In the User Modal form - Replace the existing department field */}
-<div className="sm:col-span-6">
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          id="email"
+                          value={userForm.email}
+                          onChange={handleUserInputChange}
+                          className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                          Phone
+                        </label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          id="phone"
+                          value={userForm.phone}
+                          onChange={handleUserInputChange}
+                          className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label htmlFor="employee_id" className="block text-sm font-medium text-gray-700 mb-1">
+                          Employee ID
+                        </label>
+                        <input
+                          type="text"
+                          name="employee_id"
+                          id="employee_id"
+                          value={userForm.employee_id}
+                          onChange={handleUserInputChange}
+                          className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter Employee ID"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label htmlFor="user_access1" className="block text-sm font-medium text-gray-700 mb-1">
+                          User Access 1
+                        </label>
+                        <input
+                          type="text"
+                          name="user_access1"
+                          id="user_access1"
+                          value={userForm.user_access1}
+                          onChange={handleUserInputChange}
+                          className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter User Access 1"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                          Role
+                        </label>
+                        <select
+                          id="role"
+                          name="role"
+                          value={userForm.role}
+                          onChange={handleUserInputChange}
+                          className="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="user">User</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-2 lg:col-span-3">
   <label htmlFor="departments" className="block text-sm font-medium text-gray-700">
     Departments (Multiple Selection)
   </label>
@@ -1482,41 +1481,91 @@ const resetUserForm = () => {
   </div>
 </div>
 
-                        <div className="sm:col-span-3">
-                          <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                            Status
-                          </label>
-                          <select
-                            id="status"
-                            name="status"
-                            value={userForm.status}
-                            onChange={handleUserInputChange}
-                            className="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          >
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                          </select>
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          System Access
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {SYSTEM_ACCESS_OPTIONS.map((option) => (
+                              <label
+                                key={option}
+                                className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:border-gray-300"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={userForm.systemAccess.includes(option)}
+                                  onChange={() => toggleSystemAccessOption(option)}
+                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span>{option}</span>
+                              </label>
+                            ))}
+                            {SYSTEM_ACCESS_OPTIONS.length === 0 && (
+                              <p className="text-xs text-gray-500">No system access options available</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                          type="button"
-                          onClick={() => setShowUserModal(false)}
-                          className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Page Access
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                            {PAGE_ACCESS_OPTIONS.map((option) => (
+                              <label
+                                key={option.value}
+                                className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:border-gray-300"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={userForm.pageAccess.includes(option.value)}
+                                  onChange={() => togglePageAccessOption(option.value)}
+                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span>{option.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                          Status
+                        </label>
+                        <select
+                          id="status"
+                          name="status"
+                          value={userForm.status}
+                          onChange={handleUserInputChange}
+                          className="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          <Save size={18} className="mr-2" />
-                          {isEditing ? 'Update User' : 'Save User'}
-                        </button>
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
                       </div>
-                    </form>
-                  </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-gray-200 flex flex-col sm:flex-row justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowUserModal(false);
+                          resetUserForm();
+                        }}
+                        className="w-full sm:w-auto bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="w-full sm:w-auto inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        <Save size={18} className="mr-2" />
+                        {isEditing ? 'Update User' : 'Save User'}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
@@ -1525,77 +1574,85 @@ const resetUserForm = () => {
 
         {/* Department Modal */}
         {showDeptModal && (
-          <div className="fixed z-10 inset-0 overflow-y-auto">
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-              </div>
-              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-              <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-                <div>
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      {currentDeptId ? 'Edit Department' : 'Create New Department'}
-                    </h3>
-                    <button
-                      onClick={() => setShowDeptModal(false)}
-                      className="text-gray-400 hover:text-gray-500"
-                    >
-                      <X size={24} />
-                    </button>
-                  </div>
-                  <div className="mt-6">
-                    <form onSubmit={currentDeptId ? handleUpdateDepartment : handleAddDepartment}>
-                      <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                        <div className="sm:col-span-6">
-                          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                            Department Name
-                          </label>
-                          <input
-                            type="text"
-                            name="name"
-                            id="name"
-                            value={deptForm.name}
-                            onChange={handleDeptInputChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          />
-                        </div>
-
-                        <div className="sm:col-span-6">
-                          <label htmlFor="givenBy" className="block text-sm font-medium text-gray-700">
-                            Given By
-                          </label>
-                          <input
-                            type="text"
-                            id="givenBy"
-                            name="givenBy"
-                            value={deptForm.givenBy}
-                            onChange={handleDeptInputChange}
-                            className="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            placeholder="Enter Given By"
-                          />
-                        </div>
-
+          <div className="fixed z-50 inset-0 overflow-y-auto" onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowDeptModal(false);
+            }
+          }}>
+            <div className="flex items-center justify-center min-h-screen px-2 sm:px-4 py-4">
+              <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-white z-10 border-b border-gray-200 px-4 sm:px-6 py-4 flex justify-between items-center">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
+                    {currentDeptId ? 'Edit Department' : 'Create New Department'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDeptModal(false);
+                      resetDeptForm();
+                    }}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 rounded p-1"
+                    aria-label="Close"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                <div className="px-4 sm:px-6 py-4 bg-white">
+                  <form onSubmit={currentDeptId ? handleUpdateDepartment : handleAddDepartment} className="bg-white">
+                    <div className="space-y-4 bg-white">
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                          Department Name
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          id="name"
+                          value={deptForm.name}
+                          onChange={handleDeptInputChange}
+                          className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        />
                       </div>
 
-                      <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                          type="button"
-                          onClick={() => setShowDeptModal(false)}
-                          className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          <Save size={18} className="mr-2" />
-                          {currentDeptId ? 'Update Department' : 'Save Department'}
-                        </button>
+                      <div>
+                        <label htmlFor="givenBy" className="block text-sm font-medium text-gray-700 mb-1">
+                          Given By
+                        </label>
+                        <input
+                          type="text"
+                          id="givenBy"
+                          name="givenBy"
+                          value={deptForm.givenBy}
+                          onChange={handleDeptInputChange}
+                          className="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter Given By"
+                        />
                       </div>
-                    </form>
-                  </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-gray-200 flex flex-col sm:flex-row justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowDeptModal(false);
+                          resetDeptForm();
+                        }}
+                        className="w-full sm:w-auto bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="w-full sm:w-auto inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        <Save size={18} className="mr-2" />
+                        {currentDeptId ? 'Update Department' : 'Save Department'}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>

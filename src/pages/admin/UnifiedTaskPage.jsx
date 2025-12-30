@@ -11,35 +11,33 @@ import {
     fetchUniqueMachineNames,
     fetchUniqueAssignedPersonnel
 } from "../../redux/slice/maintenanceSlice"
-import { getPendingTasks, getHistoryTasks } from "../../components/api/delegationApi"
-import {
-    normalizeAllTasks,
-    normalizeChecklistTask,
-    normalizeMaintenanceTask,
-    normalizeHousekeepingTask
-} from "../../utils/taskNormalizer"
+import { normalizeAllTasks, sortHousekeepingTasks } from "../../utils/taskNormalizer"
 import { updateMultipleMaintenanceTasks } from "../../redux/slice/maintenanceSlice"
-import { submitTasks as submitHousekeepingTasks } from "../../components/api/delegationApi"
+import {
+    fetchHousekeepingPendingTasks,
+    fetchHousekeepingHistoryTasks,
+    submitHousekeepingTasks,
+} from "../../redux/slice/housekeepingSlice"
 
 /**
  * UnifiedTaskPage - Main page component for unified task management
  * Fetches and merges data from Checklist, Maintenance, and Housekeeping systems
  */
+
+
+
 export default function UnifiedTaskPage() {
     // State
-    const [housekeepingTasks, setHousekeepingTasks] = useState([])
-    const [housekeepingLoading, setHousekeepingLoading] = useState(false)
-    const [housekeepingError, setHousekeepingError] = useState(null)
     const [userRole, setUserRole] = useState("")
     const [username, setUsername] = useState("")
-    const [showHistory, setShowHistory] = useState(false)
     const [systemAccess, setSystemAccess] = useState([]) // New state for system access
 
     const dispatch = useDispatch()
 
-    // Redux selectors - ADD THIS SECTION
+    // Redux selectors
     const checklistState = useSelector((state) => state.checkList)
     const maintenanceState = useSelector((state) => state.maintenance)
+    const housekeepingState = useSelector((state) => state.housekeeping)
 
     // Destructure variables from redux state - ADD THIS SECTION
     const {
@@ -54,12 +52,17 @@ export default function UnifiedTaskPage() {
         tasks: maintenanceTasks = [],
         history: maintenanceHistory = [],
         loading: maintenanceLoading,
-        machineNames = [],
         assignedPersonnel = []
     } = maintenanceState || {}
 
-    // Housekeeping history state
-    const [housekeepingHistory, setHousekeepingHistory] = useState([])
+    const {
+        pendingTasks: housekeepingTasks = [],
+        historyTasks: housekeepingHistory = [],
+        loading: housekeepingLoading,
+        error: housekeepingError,
+        pendingPage: housekeepingPendingPage = 1,
+        pendingHasMore: housekeepingPendingHasMore = false,
+    } = housekeepingState || {}
 
     // Load user info
     useEffect(() => {
@@ -78,17 +81,48 @@ export default function UnifiedTaskPage() {
         return systemAccess.includes(system.toLowerCase());
     }, [systemAccess])
 
-    // Load housekeeping history data
-    const loadHousekeepingHistoryData = useCallback(async () => {
-        try {
-            const data = await getHistoryTasks({})
-            console.log("=== DEBUG: Housekeeping history loaded ===", data?.length || 0)
-            setHousekeepingHistory(data || [])
-        } catch (error) {
-            console.error("Error loading housekeeping history:", error)
-            setHousekeepingHistory([])
+    // Update loadHousekeepingData function to respect system_access
+    // Backend now uses query params for department filtering (no token required)
+    const loadHousekeepingData = useCallback(async () => {
+        // Check if user has housekeeping access
+        if (!hasSystemAccess('housekeeping') && systemAccess.length > 0) {
+            return
         }
-    }, [])
+
+        // Pass department filter from user_access1 in query params
+        const filters = {}
+        const role = localStorage.getItem("role")
+        if (role?.toLowerCase() === "user") {
+            // Use user_access1 for housekeeping, fallback to user_access
+            const userAccess1 = localStorage.getItem("user_access1") || localStorage.getItem("userAccess1") || ""
+            const userAccess = localStorage.getItem("user_access") || localStorage.getItem("userAccess") || ""
+            const accessToUse = userAccess1 || userAccess
+            if (accessToUse) {
+                // Pass department as query param (comma-separated)
+                filters.department = accessToUse
+            }
+        }
+        await dispatch(fetchHousekeepingPendingTasks({ page: 1, filters })).unwrap()
+    }, [hasSystemAccess, systemAccess, dispatch])
+
+    // Load housekeeping history data
+    // Backend now uses query params for department filtering (no token required)
+    const loadHousekeepingHistoryData = useCallback(async () => {
+        // Pass department filter from user_access1 in query params
+        const filters = {}
+        const role = localStorage.getItem("role")
+        if (role?.toLowerCase() === "user") {
+            // Use user_access1 for housekeeping, fallback to user_access
+            const userAccess1 = localStorage.getItem("user_access1") || localStorage.getItem("userAccess1") || ""
+            const userAccess = localStorage.getItem("user_access") || localStorage.getItem("userAccess") || ""
+            const accessToUse = userAccess1 || userAccess
+            if (accessToUse) {
+                // Pass department as query param (comma-separated)
+                filters.department = accessToUse
+            }
+        }
+        await dispatch(fetchHousekeepingHistoryTasks({ page: 1, filters })).unwrap()
+    }, [dispatch])
 
     // Combine loading states
     const isLoading = checklistLoading || maintenanceLoading || housekeepingLoading
@@ -98,16 +132,10 @@ export default function UnifiedTaskPage() {
         const role = localStorage.getItem("role")
         const user = localStorage.getItem("user-name")
 
-        console.log("=== DEBUG: Loading Data ===")
-        console.log("User role:", role, "Username:", user)
-        console.log("System access:", systemAccess)
-
         // Load checklist data only if user has access
         if (hasSystemAccess('checklist') || systemAccess.length === 0) {
             dispatch(checklistData(1))
             dispatch(checklistHistoryData(1))
-        } else {
-            console.log("User doesn't have access to checklist system")
         }
 
         // Load maintenance data only if user has access
@@ -119,55 +147,41 @@ export default function UnifiedTaskPage() {
             dispatch(fetchCompletedMaintenanceTasks({ page: 1, filters: {} }))
             dispatch(fetchUniqueMachineNames())
             dispatch(fetchUniqueAssignedPersonnel())
-        } else {
-            console.log("User doesn't have access to maintenance system")
         }
 
         // Load housekeeping data only if user has access
         if (hasSystemAccess('housekeeping') || systemAccess.length === 0) {
             loadHousekeepingData()
             loadHousekeepingHistoryData()
-        } else {
-            console.log("User doesn't have access to housekeeping system")
         }
-    }, [dispatch, hasSystemAccess, systemAccess])
-
-    // Update loadHousekeepingData function to respect system_access
-    const loadHousekeepingData = useCallback(async () => {
-        // Check if user has housekeeping access
-        if (!hasSystemAccess('housekeeping') && systemAccess.length > 0) {
-            console.log("User doesn't have access to housekeeping system")
-            setHousekeepingTasks([])
-            return
-        }
-
-        setHousekeepingLoading(true)
-        setHousekeepingError(null)
-        try {
-            const filters = {}
-            const role = localStorage.getItem("role")
-            if (role?.toLowerCase() === "user") {
-                filters.name = localStorage.getItem("user-name")
-            }
-            const data = await getPendingTasks(filters)
-            console.log("=== DEBUG: Housekeeping pending loaded ===", data?.length || 0)
-            setHousekeepingTasks(data || [])
-        } catch (error) {
-            console.error("Error loading housekeeping data:", error)
-            setHousekeepingError(error.message)
-            setHousekeepingTasks([])
-        } finally {
-            setHousekeepingLoading(false)
-        }
-    }, [hasSystemAccess, systemAccess])
+    }, [dispatch, hasSystemAccess, systemAccess, loadHousekeepingData, loadHousekeepingHistoryData])
 
     // Callback to load more checklist data (called on scroll)
     const loadMoreChecklistData = useCallback(() => {
         if (checklistHasMore && !checklistLoading) {
-            console.log("=== DEBUG: Loading more checklist data, page:", checklistCurrentPage + 1)
             dispatch(checklistData(checklistCurrentPage + 1))
         }
     }, [checklistHasMore, checklistLoading, checklistCurrentPage, dispatch])
+
+    // Callback to load more housekeeping data (called on scroll)
+    const loadMoreHousekeepingData = useCallback(async () => {
+        if (housekeepingPendingHasMore && !housekeepingLoading) {
+            const filters = {}
+            const role = localStorage.getItem("role")
+            if (role?.toLowerCase() === "user") {
+                const userAccess1 = localStorage.getItem("user_access1") || localStorage.getItem("userAccess1") || ""
+                const userAccess = localStorage.getItem("user_access") || localStorage.getItem("userAccess") || ""
+                const accessToUse = userAccess1 || userAccess
+                if (accessToUse) {
+                    filters.department = accessToUse
+                }
+            }
+            await dispatch(fetchHousekeepingPendingTasks({ 
+                page: housekeepingPendingPage + 1, 
+                filters 
+            })).unwrap()
+        }
+    }, [housekeepingPendingHasMore, housekeepingLoading, housekeepingPendingPage, dispatch])
 
     // Normalize and merge all tasks - filter based on system_access
     const allTasks = useMemo(() => {
@@ -189,14 +203,68 @@ export default function UnifiedTaskPage() {
             ? (Array.isArray(maintenanceHistory) ? maintenanceHistory : [])
             : []
 
-        // Filter housekeeping tasks based on access
-        const housekeepingFiltered = hasSystemAccess('housekeeping') || systemAccess.length === 0
-            ? (Array.isArray(housekeepingTasks) ? housekeepingTasks : [])
-            : []
-
-        const housekeepingHistoryFiltered = hasSystemAccess('housekeeping') || systemAccess.length === 0
-            ? (Array.isArray(housekeepingHistory) ? housekeepingHistory : [])
-            : []
+        // Filter housekeeping tasks based on access and user_access departments
+        let housekeepingFiltered = []
+        let housekeepingHistoryFiltered = []
+        
+        if (hasSystemAccess('housekeeping') || systemAccess.length === 0) {
+            const allHousekeepingTasks = Array.isArray(housekeepingTasks) ? housekeepingTasks : []
+            const allHousekeepingHistory = Array.isArray(housekeepingHistory) ? housekeepingHistory : []
+            
+            // Get current role from localStorage (stable value)
+            const currentRole = localStorage.getItem("role") || ""
+            
+            // For user role, filter by user_access1 departments (for housekeeping)
+            if (currentRole?.toLowerCase() === "user") {
+                // Use user_access1 for housekeeping, fallback to user_access
+                const userAccess1 = localStorage.getItem("user_access1") || localStorage.getItem("userAccess1") || ""
+                const userAccess = localStorage.getItem("user_access") || localStorage.getItem("userAccess") || ""
+                const accessToUse = userAccess1 || userAccess
+                
+                if (accessToUse) {
+                    // Parse departments (comma-separated)
+                    const userDepartments = accessToUse.split(',').map(d => d.trim().toLowerCase()).filter(Boolean)
+                    
+                    // Filter tasks to only show those matching user's departments
+                    // Match exact or normalized match (case-insensitive, space-normalized)
+                    const normalizeDept = (dept) => dept.replace(/\s+/g, ' ').trim().toLowerCase()
+                    
+                    housekeepingFiltered = allHousekeepingTasks.filter(task => {
+                        const taskDept = normalizeDept(task.department || '')
+                        if (!taskDept) return false
+                        return userDepartments.some(userDept => {
+                            const normalizedUserDept = normalizeDept(userDept)
+                            // Exact match
+                            if (taskDept === normalizedUserDept) return true
+                            // Partial match - task department contains user department or vice versa
+                            if (taskDept.includes(normalizedUserDept) || normalizedUserDept.includes(taskDept)) return true
+                            return false
+                        })
+                    })
+                    
+                    housekeepingHistoryFiltered = allHousekeepingHistory.filter(task => {
+                        const taskDept = normalizeDept(task.department || '')
+                        if (!taskDept) return false
+                        return userDepartments.some(userDept => {
+                            const normalizedUserDept = normalizeDept(userDept)
+                            // Exact match
+                            if (taskDept === normalizedUserDept) return true
+                            // Partial match - task department contains user department or vice versa
+                            if (taskDept.includes(normalizedUserDept) || normalizedUserDept.includes(taskDept)) return true
+                            return false
+                        })
+                    })
+                } else {
+                    // No user_access1 or user_access, show nothing for user role
+                    housekeepingFiltered = []
+                    housekeepingHistoryFiltered = []
+                }
+            } else {
+                // Admin role - show all housekeeping tasks
+                housekeepingFiltered = allHousekeepingTasks
+                housekeepingHistoryFiltered = allHousekeepingHistory
+            }
+        }
 
         // Combine pending tasks from all accessible sources
         const pendingTasks = normalizeAllTasks(
@@ -216,14 +284,8 @@ export default function UnifiedTaskPage() {
         // Combine all tasks (pending + history)
         const allCombined = [...pendingTasks, ...historyTasks]
 
-        console.log("=== DEBUG: Filtered tasks ===", {
-            checklist: checklistFiltered.length,
-            maintenance: maintenanceFiltered.length,
-            housekeeping: housekeepingFiltered.length,
-            total: allCombined.length
-        })
-
-        return allCombined
+        // Sort housekeeping tasks: confirmed first
+        return sortHousekeepingTasks(allCombined)
     }, [
         checklist,
         checklistHistory,
@@ -289,47 +351,43 @@ export default function UnifiedTaskPage() {
     const handleUpdateTask = useCallback(async (updateData) => {
         const { taskId, sourceSystem, status, remarks, image, originalData } = updateData
 
-        try {
-            switch (sourceSystem) {
-                case 'checklist':
-                    await dispatch(updateChecklist([{
-                        taskId,
-                        status,
-                        remarks,
-                        image: image ? await fileToBase64(image) : null,
-                    }])).unwrap()
-                    dispatch(checklistData(1))
-                    break
+        switch (sourceSystem) {
+            case 'checklist':
+                await dispatch(updateChecklist([{
+                    taskId,
+                    status,
+                    remarks,
+                    image: image ? await fileToBase64(image) : null,
+                }])).unwrap()
+                dispatch(checklistData(1))
+                break
 
-                case 'maintenance':
-                    await dispatch(updateMultipleMaintenanceTasks([{
-                        taskId,
-                        status,
-                        remarks,
-                        image: image ? await fileToBase64(image) : null,
-                    }])).unwrap()
-                    dispatch(fetchPendingMaintenanceTasks({
-                        page: 1,
-                        userId: userRole === "user" ? username : null
-                    }))
-                    break
+            case 'maintenance':
+                await dispatch(updateMultipleMaintenanceTasks([{
+                    taskId,
+                    status,
+                    remarks,
+                    image: image ? await fileToBase64(image) : null,
+                }])).unwrap()
+                dispatch(fetchPendingMaintenanceTasks({
+                    page: 1,
+                    userId: userRole === "user" ? username : null
+                }))
+                break
 
-                case 'housekeeping':
-                    await submitHousekeepingTasks([{
-                        task_id: taskId,
-                        status,
-                        remark: remarks,
-                        attachment: originalData?.attachment,
-                    }])
-                    await loadHousekeepingData()
-                    break
+            case 'housekeeping':
+                await dispatch(submitHousekeepingTasks([{
+                    task_id: taskId,
+                    status,
+                    remark: remarks,
+                    doer_name2: updateData.doerName2 || '',  // Include doer_name2 if provided
+                    attachment: originalData?.attachment,
+                }])).unwrap()
+                await loadHousekeepingData()
+                break
 
-                default:
-                    throw new Error(`Unknown source system: ${sourceSystem}`)
-            }
-        } catch (error) {
-            console.error("Error updating task:", error)
-            throw error
+            default:
+                throw new Error(`Unknown source system: ${sourceSystem}`)
         }
     }, [dispatch, userRole, username, loadHousekeepingData])
 
@@ -347,8 +405,6 @@ export default function UnifiedTaskPage() {
         submissionData.forEach(task => {
             tasksBySource[task.sourceSystem]?.push(task)
         })
-
-        console.log("=== DEBUG: Bulk Submit ===", tasksBySource)
 
         const results = await Promise.allSettled([
             // Update checklist tasks
@@ -382,14 +438,15 @@ export default function UnifiedTaskPage() {
 
             // Update housekeeping tasks
             tasksBySource.housekeeping.length > 0
-                ? submitHousekeepingTasks(
+                ? dispatch(submitHousekeepingTasks(
                     tasksBySource.housekeeping.map(t => ({
                         task_id: t.taskId,
                         status: t.status,
                         remark: t.remarks || '',
+                        doer_name2: t.doerName2 || '',  // Include doer_name2 from select box
                         attachment: t.originalData?.attachment,
                     }))
-                )
+                )).unwrap()
                 : Promise.resolve(),
         ])
 
@@ -404,7 +461,6 @@ export default function UnifiedTaskPage() {
         // Check for errors
         const errors = results.filter(r => r.status === 'rejected')
         if (errors.length > 0) {
-            console.error("Bulk submit errors:", errors)
             throw new Error(`${errors.length} update(s) failed`)
         }
     }, [dispatch, userRole, username, loadHousekeepingData])
@@ -421,77 +477,77 @@ export default function UnifiedTaskPage() {
 
     return (
         <AdminLayout>
-            <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
+            <div className="space-y-3 sm:space-y-4 md:space-y-6 p-2 sm:p-4 md:p-0">
                 {/* Header */}
-                <div className="flex flex-col gap-3 sm:gap-4">
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-blue-700">
+                <div className="flex flex-col gap-2 sm:gap-3 md:gap-4">
+                    <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-blue-700">
                         Unified Task Management
                     </h1>
 
                     {/* Statistics Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="bg-white p-4 rounded-lg shadow-sm border">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+                        <div className="bg-white p-2 sm:p-3 md:p-4 rounded-lg shadow-sm border">
                             <div className="flex items-center">
-                                <div className="bg-blue-100 p-2 rounded-lg mr-3">
-                                    <BarChart3 className="h-5 w-5 text-blue-600" />
+                                <div className="bg-blue-100 p-1.5 sm:p-2 rounded-lg mr-2 sm:mr-3">
+                                    <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                                 </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Total Tasks</p>
-                                    <p className="text-xl font-bold">{statistics.total}</p>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs sm:text-sm text-gray-500 truncate">Total Tasks</p>
+                                    <p className="text-lg sm:text-xl font-bold">{statistics.total}</p>
                                 </div>
                             </div>
 
-                            <div className="mt-2 flex gap-2 text-xs text-gray-500">
+                            <div className="mt-1.5 sm:mt-2 flex flex-wrap gap-1 sm:gap-2 text-xs text-gray-500">
                                 {hasSystemAccess('checklist') && (
-                                    <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
-                                        {statistics.bySource.checklist} Checklist
+                                    <span className="px-1 sm:px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
+                                        {statistics.bySource.checklist} C
                                     </span>
                                 )}
                                 {hasSystemAccess('maintenance') && (
-                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
-                                        {statistics.bySource.maintenance} Maint.
+                                    <span className="px-1 sm:px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                        {statistics.bySource.maintenance} M
                                     </span>
                                 )}
                                 {hasSystemAccess('housekeeping') && (
-                                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
-                                        {statistics.bySource.housekeeping} HK
+                                    <span className="px-1 sm:px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                                        {statistics.bySource.housekeeping} H
                                     </span>
                                 )}
                             </div>
                         </div>
 
-                        <div className="bg-white p-4 rounded-lg shadow-sm border">
+                        <div className="bg-white p-2 sm:p-3 md:p-4 rounded-lg shadow-sm border">
                             <div className="flex items-center">
-                                <div className="bg-green-100 p-2 rounded-lg mr-3">
-                                    <CheckCircle className="h-5 w-5 text-green-600" />
+                                <div className="bg-green-100 p-1.5 sm:p-2 rounded-lg mr-2 sm:mr-3">
+                                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                                 </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Completed</p>
-                                    <p className="text-xl font-bold">{statistics.completed}</p>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs sm:text-sm text-gray-500 truncate">Completed</p>
+                                    <p className="text-lg sm:text-xl font-bold">{statistics.completed}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white p-4 rounded-lg shadow-sm border">
+                        <div className="bg-white p-2 sm:p-3 md:p-4 rounded-lg shadow-sm border">
                             <div className="flex items-center">
-                                <div className="bg-yellow-100 p-2 rounded-lg mr-3">
-                                    <Clock className="h-5 w-5 text-yellow-600" />
+                                <div className="bg-yellow-100 p-1.5 sm:p-2 rounded-lg mr-2 sm:mr-3">
+                                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
                                 </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Pending</p>
-                                    <p className="text-xl font-bold">{statistics.pending}</p>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs sm:text-sm text-gray-500 truncate">Pending</p>
+                                    <p className="text-lg sm:text-xl font-bold">{statistics.pending}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white p-4 rounded-lg shadow-sm border">
+                        <div className="bg-white p-2 sm:p-3 md:p-4 rounded-lg shadow-sm border">
                             <div className="flex items-center">
-                                <div className="bg-red-100 p-2 rounded-lg mr-3">
-                                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                                <div className="bg-red-100 p-1.5 sm:p-2 rounded-lg mr-2 sm:mr-3">
+                                    <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
                                 </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">High Priority</p>
-                                    <p className="text-xl font-bold">{statistics.highPriority}</p>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs sm:text-sm text-gray-500 truncate">High Priority</p>
+                                    <p className="text-lg sm:text-xl font-bold">{statistics.highPriority}</p>
                                 </div>
                             </div>
                         </div>
@@ -500,7 +556,7 @@ export default function UnifiedTaskPage() {
 
                 {/* Error Display */}
                 {housekeepingError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-2 sm:px-4 py-2 sm:py-3 rounded-md text-xs sm:text-sm">
                         Housekeeping data error: {housekeepingError}
                     </div>
                 )}
@@ -514,9 +570,12 @@ export default function UnifiedTaskPage() {
                     assignedToOptions={allAssignees}
                     departmentOptions={allDepartments}
                     userRole={userRole}
-                    username={username}
-                    onLoadMore={loadMoreChecklistData}
-                    hasMore={checklistHasMore}
+                    onLoadMore={() => {
+                        // Load more for both checklist and housekeeping
+                        loadMoreChecklistData()
+                        loadMoreHousekeepingData()
+                    }}
+                    hasMore={checklistHasMore || housekeepingPendingHasMore}
                 />
             </div>
         </AdminLayout>

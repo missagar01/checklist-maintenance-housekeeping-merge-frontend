@@ -6,7 +6,8 @@ import delegationReducer  from "./slice/delegationSlice";
 import checkListReducer  from "./slice/checklistSlice";
 import dashboardReducer from "./slice/dashboardSlice";
 import settingReducer from './slice/settingSlice';
-import maintenanceReducer from './slice/maintenanceSlice'; // Add this line
+import maintenanceReducer from './slice/maintenanceSlice';
+import housekeepingReducer from './slice/housekeepingSlice';
 
 const store = configureStore({
     reducer: {
@@ -17,20 +18,23 @@ const store = configureStore({
         checkList: checkListReducer,
         dashBoard: dashboardReducer,
         setting: settingReducer,
-        maintenance: maintenanceReducer, // Add this line
+        maintenance: maintenanceReducer,
+        housekeeping: housekeepingReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
             serializableCheck: {
                 ignoredActions: [
-                    // Add maintenance actions if needed
                     'maintenance/updateTask/fulfilled',
-                    'maintenance/updateMultipleTasks/fulfilled'
+                    'maintenance/updateMultipleTasks/fulfilled',
+                    'housekeeping/confirmTask/fulfilled',
+                    'housekeeping/updateTask/fulfilled'
                 ],
                 ignoredPaths: [
-                    // Add maintenance paths if needed
                     'maintenance.tasks',
-                    'maintenance.history'
+                    'maintenance.history',
+                    'housekeeping.pendingTasks',
+                    'housekeeping.historyTasks'
                 ],
             },
         }),

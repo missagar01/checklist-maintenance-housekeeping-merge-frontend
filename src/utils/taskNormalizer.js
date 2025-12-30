@@ -317,6 +317,31 @@ export const sortByDate = (tasks, ascending = true) => {
     });
 };
 
+// Sort housekeeping tasks: confirmed first, then by date
+export const sortHousekeepingTasks = (tasks) => {
+    return [...tasks].sort((a, b) => {
+        // Only apply special sorting for housekeeping tasks
+        if (a.sourceSystem !== 'housekeeping' || b.sourceSystem !== 'housekeeping') {
+            const dateA = new Date(a.dueDate || 0);
+            const dateB = new Date(b.dueDate || 0);
+            return dateA - dateB;
+        }
+        
+        // Check if tasks are confirmed (attachment === 'confirmed' or confirmedByHOD === 'Confirmed')
+        const aConfirmed = a.originalData?.attachment === 'confirmed' || a.confirmedByHOD === 'Confirmed';
+        const bConfirmed = b.originalData?.attachment === 'confirmed' || b.confirmedByHOD === 'Confirmed';
+        
+        // Confirmed tasks first
+        if (aConfirmed && !bConfirmed) return -1;
+        if (!aConfirmed && bConfirmed) return 1;
+        
+        // If both confirmed or both not confirmed, sort by date
+        const dateA = new Date(a.dueDate || 0);
+        const dateB = new Date(b.dueDate || 0);
+        return dateA - dateB;
+    });
+};
+
 export const sortByPriority = (tasks) => {
     return [...tasks].sort((a, b) => {
         return (PRIORITY_ORDER[a.priority] || 4) - (PRIORITY_ORDER[b.priority] || 4);
