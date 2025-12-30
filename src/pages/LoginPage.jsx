@@ -42,6 +42,7 @@ const LoginPage = () => {
       // Store all user data in localStorage - optimized batch operation
       const dataToStore = {
         'user-name': userData.user_name || userData.username || "",
+        'user_id': userData.id || userData.user_id || "",
         'role': userData.role || "",
         'email_id': userData.email_id || userData.email || "",
       };

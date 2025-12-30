@@ -1,6 +1,7 @@
 // Helper for clearing all session keys that are populated during login.
 const SESSION_KEYS = [
   "user-name",
+  "user_id",
   "role",
   "email_id",
   "token",
@@ -19,4 +20,3 @@ export const clearSessionStorage = () => {
     localStorage.removeItem(key);
   });
 };
-
