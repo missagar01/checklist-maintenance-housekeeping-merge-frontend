@@ -11,7 +11,7 @@ import TasksOverviewChart from "./dashboard/Chart/TaskOverviewChart.jsx"
 import TasksCompletionChart from "./dashboard/Chart/TaskCompletionChart.jsx"
 import StaffTasksTable from "./dashboard/StaffTaskTable.jsx"
 // Add these imports at the top with other imports
-import MaintenanceDashboard from "./maintenanceDashboard.jsx"
+import MaintenanceDashboard from "./MaintenanceDashboardNew.jsx"
 import HousekeepingDashboard from "./housekeppingDashboard.jsx"
 
 // Add this state variable with other state declarations

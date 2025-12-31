@@ -22,12 +22,16 @@ const CONFIG = {
   },
 }
 
+
 const DOER2_OPTIONS = [
   "Sarad Behera",
   "Tikeshware Chakradhari(KH)",
   "Makhan Lal",
+  "Vikash Dehre",
+
 ]
 const PAGE_SIZE = 100
+
 
 function HousekeepingTasksPage() {
   const dispatch = useDispatch()
@@ -1090,9 +1094,19 @@ function HousekeepingTasksPage() {
                                   <div className="text-xs sm:text-sm text-gray-900 break-words">{task.department || "—"}</div>
                                 </td>
                                 <td className="px-2 sm:px-3 py-2 sm:py-4">
-                                  <div className="text-xs sm:text-sm text-gray-900 break-words">
-                                    {doerName2Selections[task.task_id] || task.doer_name2 || "—"}
-                                  </div>
+                                  <select
+                                    disabled={!isSelected || task.attachment !== "confirmed"}
+                                    value={doerName2Selections[task.task_id] || task.doer_name2 || ""}
+                                    onChange={(e) => setDoerName2Selections(prev => ({ ...prev, [task.task_id]: e.target.value }))}
+                                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-gray-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                  >
+                                    <option value="">Select...</option>
+                                    {DOER2_OPTIONS.map((opt) => (
+                                      <option key={opt} value={opt}>
+                                        {opt}
+                                      </option>
+                                    ))}
+                                  </select>
                                 </td>
                                 <td className="px-2 sm:px-3 py-2 sm:py-4 min-w-[150px]">
                                   <div className="text-xs sm:text-sm text-gray-900 break-words" title={task.task_description}>
