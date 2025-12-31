@@ -28,14 +28,20 @@ export const fetchMaintenanceDashboardDataApi = async (
 
     if (!res.ok) {
       console.error(`API Error: ${res.status} ${res.statusText}`);
-      return [];
+      return { data: [], total: 0 };
     }
 
-    const data = await res.json();
-    return data.success ? data.data : [];
+    const response = await res.json();
+    if (response.success) {
+      return {
+        data: response.data || [],
+        total: response.total || 0,
+      };
+    }
+    return { data: [], total: 0 };
   } catch (error) {
     console.error("Error loading maintenance tasks:", error);
-    return [];
+    return { data: [], total: 0 };
   }
 };
 
@@ -70,7 +76,8 @@ export const getMaintenanceDashboardDataCount = async (
     }
 
     const data = await res.json();
-    return data.totalCount || 0;
+    // API returns 'total', not 'totalCount'
+    return data.total || data.totalCount || 0;
   } catch (error) {
     console.error("Maintenance Dashboard Count Error:", error);
     return 0;

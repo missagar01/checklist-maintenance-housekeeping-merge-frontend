@@ -4,7 +4,6 @@ import { Filter, ChevronDown, ChevronUp } from "lucide-react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import {
   fetchMaintenanceDashboardDataApi,
-  getMaintenanceDashboardDataCount,
 } from "../../../redux/api/maintenanceDashboardApi"
 
 export default function MaintenanceTaskNavigationTabs({
@@ -41,7 +40,7 @@ export default function MaintenanceTaskNavigationTabs({
       try {
         setIsLoadingMore(true)
 
-        const data = await fetchMaintenanceDashboardDataApi(
+        const response = await fetchMaintenanceDashboardDataApi(
           dashboardStaffFilter,
           page,
           itemsPerPage,
@@ -49,19 +48,13 @@ export default function MaintenanceTaskNavigationTabs({
           departmentFilter
         )
 
-        // Get total count for this view (only on first load)
+        // Extract data and total count from API response
+        const data = response.data || response || []
+        const total = response.total || 0
+
+        // Set total count from API response (only on first load)
         if (page === 1) {
-          try {
-            const count = await getMaintenanceDashboardDataCount(
-              taskView,
-              dashboardStaffFilter,
-              departmentFilter
-            )
-            setTotalCount(count || 0)
-          } catch (error) {
-            console.error("Error getting count:", error)
-            setTotalCount(0)
-          }
+          setTotalCount(total)
         }
 
         if (!data || !Array.isArray(data) || data.length === 0) {
@@ -310,7 +303,7 @@ export default function MaintenanceTaskNavigationTabs({
 
       {/* Task count */}
       <div className="text-sm text-gray-600 w-full">
-        Total {taskView} tasks: {totalCount} | Showing: {filteredTasks.length}
+        Total {taskView === "recent" ? "Recent" : taskView === "upcoming" ? "Upcoming" : "Overdue"} Tasks: {totalCount} | Showing: {filteredTasks.length}
       </div>
 
       {/* Task table - with infinite scroll */}
